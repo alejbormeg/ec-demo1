@@ -351,16 +351,13 @@ public class ReservaOverview
           Button.builder().label(llegada().listo(stay) ? "Confirmar check-in" : "Completar check-in")
               .actionId("iniciarCheckin")
               .buttonStyle(ButtonStyle.primary)
-              .build(),
-          // the guest does it themselves on the lobby tablet (Civitfun, simulated)
-          Button.builder().label("Check-in en tableta").actionId("enviarTableta").build(),
-          Button.builder().label("Caja").actionId("abrirCaja").build());
+              .build());
+          // the lobby tablet and the till are the header's icons (CHECK-IN, the amount)
       case IN_HOUSE -> List.of(
           Button.builder().label("Check-out").actionId("irCheckout").buttonStyle(ButtonStyle.primary).build(),
           Button.builder().label("Añadir cargo").actionId("opCargos").build(),
           Button.builder().label("Cambiar habitación").actionId("opHabitacion").build(),
           Button.builder().label("Gestionar folio").actionId("gestionFolio").build(),
-          Button.builder().label("Caja").actionId("abrirCaja").build(),
           Button.builder().label("Mensaje huésped").actionId("mensajeHuesped").build(),
           Button.builder().label("Registrar petición").actionId("opPeticion").build(),
           Button.builder().label("Nueva incidencia").actionId("opIncidencia").build());
