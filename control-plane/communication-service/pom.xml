@@ -26,7 +26,7 @@
              against. `shared` is the engine's own DTO jar and tracks the engine image tag in
              deploy/values/eventconductor.yaml — the events on the wire are defined there, so a
              mismatch is a deserialization failure at runtime and not a compile error. -->
-        <mateu.version>3.0-alpha.415</mateu.version>
+        <mateu.version>3.0-alpha.416</mateu.version>
         <eventconductor.version>2.23.1</eventconductor.version>
         <spring-cloud.version>2024.0.0</spring-cloud.version>
         <spring-ai.version>1.0.0</spring-ai.version>

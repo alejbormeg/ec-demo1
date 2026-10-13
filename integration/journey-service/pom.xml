@@ -22,7 +22,7 @@
 
     <properties>
         <java.version>21</java.version>
-        <mateu.version>3.0-alpha.415</mateu.version>
+        <mateu.version>3.0-alpha.416</mateu.version>
         <!-- Ahead of what Boot 3.4.3 manages (1.18.36), which does not run on a JDK 25 javac. -->
         <lombok.version>1.18.44</lombok.version>
     </properties>

@@ -182,8 +182,9 @@ public class ReservaOverview
   Callable<Component> header =
       () ->
           switch (stay().status()) {
-            case ARRIVING -> GuestHeaders.arrivalHeader(stayId);
-            case IN_HOUSE -> GuestHeaders.inHouseHeader(stayId);
+            // EMPRESA with its ✎, which opens the company's drawer
+            case ARRIVING -> GuestHeaders.arrivalHeader(stayId, true);
+            case IN_HOUSE -> GuestHeaders.inHouseHeader(stayId, true);
             case DEPARTED -> GuestHeaders.departureHeader(stayId);
             case CANCELLED, NO_SHOW -> GuestHeaders.arrivalHeader(stayId);
           };
@@ -353,15 +354,13 @@ public class ReservaOverview
               .build(),
           // the guest does it themselves on the lobby tablet (Civitfun, simulated)
           Button.builder().label("Check-in en tableta").actionId("enviarTableta").build(),
-          Button.builder().label("Caja").actionId("abrirCaja").build(),
-          empresaButton());
+          Button.builder().label("Caja").actionId("abrirCaja").build());
       case IN_HOUSE -> List.of(
           Button.builder().label("Check-out").actionId("irCheckout").buttonStyle(ButtonStyle.primary).build(),
           Button.builder().label("Añadir cargo").actionId("opCargos").build(),
           Button.builder().label("Cambiar habitación").actionId("opHabitacion").build(),
           Button.builder().label("Gestionar folio").actionId("gestionFolio").build(),
           Button.builder().label("Caja").actionId("abrirCaja").build(),
-          empresaButton(),
           Button.builder().label("Mensaje huésped").actionId("mensajeHuesped").build(),
           Button.builder().label("Registrar petición").actionId("opPeticion").build(),
           Button.builder().label("Nueva incidencia").actionId("opIncidencia").build());
@@ -761,11 +760,6 @@ public class ReservaOverview
   }
 
 
-
-  /** The header's EMPRESA, chosen or corrected: its drawer. */
-  private static Button empresaButton() {
-    return Button.builder().id("empresa").label("✎ Empresa").actionId("opEmpresa").build();
-  }
 
   /** The company's drawer: its data when the stay has one, else the search to choose it. */
   private Object drawerEmpresa() {

@@ -24,6 +24,11 @@ public final class GuestHeaders {
 
   /** The arriving guest's banner, shown as the first component of every check-in wizard step. */
   public static Component arrivalHeader(String stayId) {
+    return arrivalHeader(stayId, false);
+  }
+
+  /** The same; {@code companyEditable}: EMPRESA carries the button that chooses or corrects it (opEmpresa). */
+  public static Component arrivalHeader(String stayId, boolean companyEditable) {
     var view = FrontOffice.stayView(stayId);
     var stay = view.stay();
     var guest = view.guest();
@@ -36,7 +41,7 @@ public final class GuestHeaders {
         .badges(badges)
         .subtitle(staySubtitle(stay))
         .facts(totalFacts(stay.total(), FrontOffice.agreedPrice(stayId).orElse(null), stay.agency(),
-            FrontOffice.company(stayId).orElse(null)))
+            FrontOffice.company(stayId).orElse(null), companyEditable))
         .metricLabel("FIDELIDAD")
         .metricValue(points(guest, known))
         .metricCaption(staysCaption(guest, known))
@@ -52,11 +57,16 @@ public final class GuestHeaders {
    * how much Opera's goes over.
    */
   static List<Fact> totalFacts(BigDecimal total, BigDecimal agreed, String agency) {
-    return totalFacts(total, agreed, agency, null);
+    return totalFacts(total, agreed, agency, null, false);
+  }
+
+  static List<Fact> totalFacts(BigDecimal total, BigDecimal agreed, String agency, String company) {
+    return totalFacts(total, agreed, agency, company, false);
   }
 
   /** The same, and the company billed when neither the agency nor the guest is — «—» without one. */
-  static List<Fact> totalFacts(BigDecimal total, BigDecimal agreed, String agency, String company) {
+  static List<Fact> totalFacts(BigDecimal total, BigDecimal agreed, String agency, String company,
+                               boolean companyEditable) {
     var facts = new ArrayList<Fact>();
     if (agreed == null || total == null || agreed.compareTo(total) == 0) {
       facts.add(Fact.builder().label("TOTAL RESERVA").value(euros(total)).build());
@@ -68,12 +78,18 @@ public final class GuestHeaders {
           .build());
     }
     facts.add(Fact.builder().label("AGENCIA").value(agency).build());
-    facts.add(companyFact(company));
+    facts.add(companyFact(company, companyEditable));
     return facts;
   }
 
-  static Fact companyFact(String company) {
-    return Fact.builder().label("EMPRESA").value(company == null || company.isBlank() ? "—" : company).build();
+  /** EMPRESA, «—» without one; {@code editable}: with the ✎ that opens its drawer (opEmpresa). */
+  static Fact companyFact(String company, boolean editable) {
+    var fact = Fact.builder().label("EMPRESA").value(company == null || company.isBlank() ? "—" : company);
+    if (editable) {
+      fact.actionId("opEmpresa").actionLabel(company == null || company.isBlank() ? "Elegir la empresa"
+          : "Cambiar o corregir la empresa");
+    }
+    return fact.build();
   }
 
   /** The departing guest's banner at check-out. */
@@ -94,6 +110,10 @@ public final class GuestHeaders {
 
   /** The in-house guest's 360 banner. */
   public static Component inHouseHeader(String stayId) {
+    return inHouseHeader(stayId, false);
+  }
+
+  public static Component inHouseHeader(String stayId, boolean companyEditable) {
     var view = FrontOffice.stayView(stayId);
     var stay = view.stay();
     var guest = view.guest();
@@ -121,7 +141,7 @@ public final class GuestHeaders {
                     .label("PREAUTORIZADO")
                     .value(euros(folio == null ? null : folio.preauthorized()))
                     .build(),
-                companyFact(FrontOffice.company(stayId).orElse(null))))
+                companyFact(FrontOffice.company(stayId).orElse(null), companyEditable)))
         .metricLabel("FIDELIDAD")
         .metricValue(points(guest, known))
         .metricCaption(staysCaption(guest, known))
