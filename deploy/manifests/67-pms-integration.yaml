@@ -45,7 +45,7 @@ spec:
             capabilities: { drop: ["ALL"] }
       containers:
         - name: pms-integration-service
-          image: miguelperezcolom/ec-demo1-pms-integration-service:0.68.0
+          image: miguelperezcolom/ec-demo1-pms-integration-service:0.69.0
           env:
             # Traces to Tempo, the one the engine exports to: a booking's trace runs from the CRS through
             # the orchestrator to this service's steps, its calls to the MDM and to Opera, and on to the
