@@ -84,36 +84,6 @@ final class HuespedesPanel {
     return all;
   }
 
-  /**
-   * «Cliente»: quién es en la cadena el pax elegido (uno por pax con más de uno) — «Cliente conocido»
-   * con el resumen de sus estancias y su Riu Class, o «Posible cliente conocido» con nombres y fechas
-   * de nacimiento. Lo que diga el huésped se escribe en su kárdex («Editar»): al guardarlo, su número Riu
-   * Class o su email dan certeza, y su nombre y fecha de nacimiento, solo «posible».
-   */
-  Component cliente(Stay stay) {
-    var pax = Math.max(1, Math.min(r.paxCliente, stay.pax()));
-    var contenido = new ArrayList<Component>();
-    contenido.add(Text.builder().text("Cliente").container(TextContainer.h3).style("margin: 0;").build());
-    if (stay.pax() > 1) {
-      var botones = new ArrayList<Component>();
-      for (int i = 1; i <= stay.pax(); i++) {
-        botones.add(Button.builder()
-            .id("cliente-pax-" + i)
-            .label(i + "/" + stay.pax())
-            .actionId("clientePax")
-            .parameters(java.util.Map.of("paxIndex", i))
-            .buttonStyle(i == pax ? io.mateu.uidl.data.ButtonStyle.primary : null)
-            .build());
-      }
-      contenido.add(io.mateu.uidl.data.HorizontalLayout.builder().content(botones)
-          .style("gap: .5rem; flex-wrap: wrap;").build());
-    }
-    contenido.add(io.mateu.ecdemo1.frontoffice.ui.common.CustomerPanels.panel(
-        io.mateu.ecdemo1.frontoffice.ui.common.FrontOffice.recognition(stay.id(), pax)));
-    return VerticalLayout.builder().style("width: 100%; gap: .5rem;").content(contenido).build();
-  }
-
-
   /** Preferencias, última estancia, quejas pendientes e historial del huésped principal. */
   Component perfilCliente() {
     var guest = r.view().guest();
@@ -208,8 +178,6 @@ final class HuespedesPanel {
       // la descripción del acompañante ya incluye su documento
       contenido.add(Text.builder().text(companion.description()).size(TextSize.xs).noMargins(true).build());
     }
-    // quién es cada huésped en la cadena (en casa también se puede confirmar)
-    contenido.add(cliente(stay));
     contenido.add(Text.builder().text("Salida").container(TextContainer.h3).style("margin: 0;").build());
     contenido.add(Text.builder().text(EstanciaPanel.salida(stay, view.folio())).noMargins(true).build());
     contenido.add(Text.builder().text(stay.nights() + " noches · " + stay.board())

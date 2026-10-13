@@ -167,8 +167,6 @@ public class ReservaOverview
   @Hidden String cargoBusqueda;
   @Hidden String ultimaBusqueda;
 
-  // ── «Cliente»: el pax cuyo reconocimiento se muestra ──────
-  @Hidden int paxCliente = 1;
 
   /** Who each pax is in the chain; none in a test that builds the page by hand. */
   @Getter(AccessLevel.NONE) io.mateu.ecdemo1.frontoffice.application.Recognition recognition;
@@ -279,7 +277,7 @@ public class ReservaOverview
         .headerTitle("Huéspedes")
         .overview(VerticalLayout.builder()
             .style("width: 100%; gap: 1rem;")
-            .content(List.of(huespedes().rail(stay, false), huespedes().cliente(stay)))
+            .content(List.of(huespedes().rail(stay, false)))
             .build())
         .panels(List.of(
             FoldoutPanel.builder()
@@ -386,7 +384,7 @@ public class ReservaOverview
             "anularCargo", "comprobarHabitacion", "completarCheckin",
             // Mateu 392 refuses an action a component does not declare here («not an action»)
             "noShowPax", "confirmarNoShowPax", "cancelarNoShowPax", "guardarExtras",
-            "clientePax", "abrirCaja", "enviarTableta",
+            "abrirCaja", "enviarTableta",
             "opEmpresa", "cambiarEmpresa", "buscarEmpresas", "elegirEmpresa", "quitarEmpresa", "guardarEmpresa")
         .contains(actionId);
   }
@@ -483,10 +481,6 @@ public class ReservaOverview
             UICommand.closeModal("cardex-guardado"));
       }
       case "refrescarReserva" -> this;
-      case "clientePax" -> {
-        paxCliente = (int) Double.parseDouble(param(httpRequest, "paxIndex"));
-        yield this;
-      }
       case "opEmpresa" -> drawerEmpresa();
       case "cambiarEmpresa" -> EmpresaPanel.busqueda(stayId, null, null, empresas().of(stayId).orElse(null));
       case "buscarEmpresas" -> {
