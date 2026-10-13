@@ -78,7 +78,7 @@ final class LlegadaPanel {
 
   /** The operations the check-in wizard does itself; the others are done only on their card here. */
   static final java.util.Set<String> EN_EL_WIZARD =
-      java.util.Set.of("documentos", "habitacion", "firma", "cobro", "llave", "extras");
+      java.util.Set.of("documentos", "habitacion", "firma", "cobro", "llave", "extras", "wifi");
 
   /** Where «check-in» goes: straight in, to the wizard, or back to a card the wizard has not got. */
   enum Siguiente { DIRECTO, WIZARD, TARJETA }

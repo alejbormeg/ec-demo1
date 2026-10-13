@@ -23,8 +23,9 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 /**
- * The check-in flow of one arriving stay (route {@code /checkin/:id}): Identidad → Habitación →
- * Extras → Confirmar, plus the read-only result screen. Every step opens with the guest's
+ * The check-in flow of one arriving stay (route {@code /checkin/:id}): one step per operation still
+ * pending when it opens — Avisos, Identidad, Habitación, Firma, Extras, Cobro, Llave, Wifi — and the
+ * last, Confirmar, with the summary and «Confirmar check-in»; plus the read-only result screen. Every step opens with the guest's
  * {@code EntityHeader} so the context never leaves the screen; the room grid, the upgrade offer and
  * the add-on picker dispatch their actions back into this wizard.
  *
@@ -71,7 +72,8 @@ public class CheckInWizard extends Wizard {
   String pasos;
 
   /** The steps shown only when something they do is pending; the rest always apply. */
-  static final List<String> PASOS_CONDICIONALES = List.of("avisos", "identidad", "habitacion", "extras");
+  static final List<String> PASOS_CONDICIONALES =
+      List.of("avisos", "identidad", "habitacion", "firma", "extras", "cobro", "llave", "wifi");
 
   @Label("Avisos")
   AvisosStep avisos = new AvisosStep();
@@ -82,8 +84,20 @@ public class CheckInWizard extends Wizard {
   @Label("Habitación")
   HabitacionStep habitacion = new HabitacionStep();
 
+  @Label("Firma")
+  FirmaStep firma = new FirmaStep();
+
   @Label("Extras")
   ExtrasStep extras = new ExtrasStep();
+
+  @Label("Cobro")
+  CobroStep cobro = new CobroStep();
+
+  @Label("Llave")
+  LlaveStep llave = new LlaveStep();
+
+  @Label("Wifi")
+  WifiStep wifi = new WifiStep();
 
   @Label("Confirmar")
   ConfirmarStep confirmar = new ConfirmarStep();
@@ -151,22 +165,27 @@ public class CheckInWizard extends Wizard {
     extras.setStayId(stayId);
     extras.setExtrasSeleccionados("");
     extras.setExtrasTotal(0);
+    firma.setStayId(stayId);
+    cobro.setStayId(stayId);
+    llave.setStayId(stayId);
+    wifi.setStayId(stayId);
     confirmar.setStayId(stayId);
     // the run's steps: what is pending NOW, kept for the whole run
     pasos = null;
     pasos = String.join(",", PASOS_CONDICIONALES.stream().filter(this::stepApplies).toList());
-    // operaciones ya completadas desde la Reserva 360 (o un wizard anterior): el paso
-    // Confirmar las muestra en verde y no las vuelve a pedir
+    // operaciones ya completadas desde la Reserva 360 (o un wizard anterior): su paso no sale, y si
+    // saliera, las muestra en verde
     var ops = queries.ops(stayId);
     if (ops.llave()) {
-      confirmar.setLlaveEstado("grabada");
+      llave.setLlaveEstado("grabada");
     }
     if (ops.firma()) {
-      confirmar.setFirmaEstado("firmada");
+      firma.setFirmaEstado("firmada");
     }
     if (ops.cobro()) {
-      confirmar.setPreauthEstado("preautorizado");
+      cobro.setPreauthEstado("preautorizado");
     }
+    wifi.setCreada(ops.wifi());
   }
 
   /** The Confirmar step shows data derived from the other steps — recompute it on each request. */
@@ -184,6 +203,8 @@ public class CheckInWizard extends Wizard {
     confirmar.setEstancia(GuestHeaders.stayDates(stay));
     confirmar.setRegimen(stay.board());
     confirmar.setTotalEstancia(stay.total().doubleValue() + extras.getExtrasTotal());
+    confirmar.setTotal(GuestHeaders.euros(confirmar.getTotalEstancia()));
+    cobro.setTotalEstancia(confirmar.getTotalEstancia());
   }
 
   /** The selected room's type from the room inventory, falling back to the reservation's. */
@@ -198,6 +219,11 @@ public class CheckInWizard extends Wizard {
     switch (actionId) {
       case "volverReserva" -> {
         return java.net.URI.create("/reservas/" + stayId);
+      }
+      case "crearWifi" -> {
+        checkIn.wifiCreated(stayId);
+        wifi.setCreada(true);
+        return List.of(this, new Message("Tarjeta wifi creada — red HOTEL_GUEST · clave " + WifiStep.clave(stayId)));
       }
       case "pickRoom" -> {
         var item = param(httpRequest, "_item");
@@ -252,21 +278,21 @@ public class CheckInWizard extends Wizard {
       case "encodeKey" -> {
         // SSE: re-render immediately as "Grabando llave…"; 5 s later (the encoder finishes)
         // dispatch llave-grabada — the @SubscribeTo above reloads.
-        confirmar.setLlaveEstado("grabando");
+        llave.setLlaveEstado("grabando");
         return Flux.concat(
             Flux.<Object>just(List.of(this, new Message("Grabando llave / pulsera…"))),
             Mono.delay(Duration.ofSeconds(5))
                 .map(tick -> (Object) UICommand.dispatchEvent("llave-grabada")));
       }
       case "llaveGrabada" -> {
-        confirmar.setLlaveEstado("grabada");
+        llave.setLlaveEstado("grabada");
         checkIn.keyEncoded(stayId);
         return List.of(this, new Message("Llave / pulsera grabada"));
       }
       case "requestPreauth" -> {
         // SSE: re-render immediately as "Solicitando preautorización…"; 5 s later (the TPV
         // answers) dispatch preautorizacion-completada — the @SubscribeTo above reloads.
-        confirmar.setPreauthEstado("solicitando");
+        cobro.setPreauthEstado("solicitando");
         return Flux.concat(
             Flux.<Object>just(
                 List.of(
@@ -279,7 +305,7 @@ public class CheckInWizard extends Wizard {
                 .map(tick -> (Object) UICommand.dispatchEvent("preautorizacion-completada")));
       }
       case "preautorizado" -> {
-        confirmar.setPreauthEstado("preautorizado");
+        cobro.setPreauthEstado("preautorizado");
         checkIn.paymentTaken(stayId, "card", confirmar.getTotalEstancia() == null ? null : java.math.BigDecimal.valueOf(confirmar.getTotalEstancia()));
         return List.of(
             this,
@@ -289,7 +315,7 @@ public class CheckInWizard extends Wizard {
       case "sendToTablet" -> {
         // SSE: re-render immediately as "Enviado · Esperando firma"; 5 s later (the guest signs
         // on the tablet) dispatch firma-capturada — the @SubscribeTo above reloads the wizard.
-        confirmar.setFirmaEstado("enviada");
+        firma.setFirmaEstado("enviada");
         return Flux.concat(
             Flux.<Object>just(
                 List.of(this, new Message("Documento de registro enviado a la tablet Civitfun"))),
@@ -300,7 +326,7 @@ public class CheckInWizard extends Wizard {
         return forzarCheckin();
       }
       case "firmaCapturada" -> {
-        confirmar.setFirmaEstado("firmada");
+        firma.setFirmaEstado("firmada");
         checkIn.registrationSigned(stayId, io.mateu.ecdemo1.frontoffice.infra.security.DeskUser.name());
         return List.of(this, new Message("Firma capturada"));
       }
@@ -363,7 +389,8 @@ public class CheckInWizard extends Wizard {
             "preautorizado",
             "llaveGrabada",
             "forzarCheckin",
-            "volverReserva")) {
+            "volverReserva",
+            "crearWifi")) {
       actions.add(Action.builder().id(id).build());
     }
     // stream two increments each: the in-flight state now, the confirmation 5 s later
@@ -375,11 +402,11 @@ public class CheckInWizard extends Wizard {
 
   // ── Completion ──────────────────────────────────────────────────────────────
 
-  /** Solo lo que FALTA — cada paso pregunta por SU operación de check-in: identidad si hay
-   *  documentación pendiente; habitación si la estancia no tiene ninguna asignada;
-   *  extras si la selección de ancillaries no se cerró aún. Confirmación, siempre.
+  /** Solo lo que FALTA — un paso por operación de check-in pendiente: avisos si los hay; identidad
+   *  si hay documentación pendiente; habitación si no tiene ninguna asignada; firma, extras, cobro,
+   *  llave y wifi si su operación no está hecha. Confirmar (el resumen), siempre.
    *  Una estancia ya en casa (un check-in forzado que se completa, «Completar») solo abre lo que
-   *  el check-in le debe: la documentación y la firma (en Confirmar). */
+   *  el check-in le debe: la documentación y la firma. */
   @Override
   protected boolean stepApplies(String stepFieldName) {
     if (stayId == null || stayId.isBlank()) {
@@ -391,7 +418,8 @@ public class CheckInWizard extends Wizard {
     if (completando()) {
       return switch (stepFieldName) {
         case "identidad" -> queries.pendingPax(queries.view(stayId).stay()) > 0;
-        case "avisos", "habitacion", "extras" -> false;
+        case "firma" -> !queries.ops(stayId).firma();
+        case "avisos", "habitacion", "extras", "cobro", "llave", "wifi" -> false;
         default -> true;
       };
     }
@@ -402,6 +430,10 @@ public class CheckInWizard extends Wizard {
       case "identidad" -> queries.pendingPax(queries.view(stayId).stay()) > 0;
       case "habitacion" -> !queries.view(stayId).stay().hasRoom();
       case "extras" -> !queries.ops(stayId).extras();
+      case "firma" -> !queries.ops(stayId).firma();
+      case "cobro" -> !queries.ops(stayId).cobro();
+      case "llave" -> !queries.ops(stayId).llave();
+      case "wifi" -> !queries.ops(stayId).wifi();
       default -> true;
     };
   }

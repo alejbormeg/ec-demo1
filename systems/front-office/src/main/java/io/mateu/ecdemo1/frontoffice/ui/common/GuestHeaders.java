@@ -28,17 +28,21 @@ public final class GuestHeaders {
   }
 
   /**
-   * The check-in's banner: the arrival's, and RESERVA — the stay — with the button back to its page
-   * (volverReserva): the wizard has no toolbar of its own to leave it by.
+   * The check-in's banner: the arrival's, and beside it the button back to the reservation's page
+   * (volverReserva) — the wizard has no toolbar of its own to leave it by. A plain button, not a fact's:
+   * a fact's action answered in a banner inside the page (Mateu 416, Redwood) drew the reservation over
+   * the wizard instead of replacing it.
    */
   public static Component checkInHeader(String stayId) {
-    var header = (EntityHeader) arrivalHeader(stayId, false);
-    var facts = new ArrayList<Fact>(header.facts());
-    facts.add(0, Fact.builder().label("RESERVA").value(stayId).actionId("volverReserva")
-        .icon("oj-ux-ico-arrow-left").actionLabel("Volver a la reserva").build());
-    return EntityHeader.builder().id(header.id()).title(header.title()).badges(header.badges())
-        .subtitle(header.subtitle()).facts(facts).metricLabel(header.metricLabel()).metricValue(header.metricValue())
-        .metricCaption(header.metricCaption()).style(header.style()).cssClasses(header.cssClasses()).build();
+    var volver = io.mateu.uidl.data.Button.builder().id("volver-reserva").label("← Volver a la reserva")
+        .actionId("volverReserva").buttonStyle(io.mateu.uidl.data.ButtonStyle.tertiary).build();
+    return io.mateu.uidl.data.HorizontalLayout.builder()
+        .style("width: 100%; gap: 1rem; align-items: flex-start;")
+        .content(List.of(
+            io.mateu.uidl.data.VerticalLayout.builder().style("flex: 1; min-width: 0;")
+                .content(List.of(arrivalHeader(stayId, false))).build(),
+            volver))
+        .build();
   }
 
   /** The same; {@code companyEditable}: EMPRESA carries the button that chooses or corrects it (opEmpresa). */
