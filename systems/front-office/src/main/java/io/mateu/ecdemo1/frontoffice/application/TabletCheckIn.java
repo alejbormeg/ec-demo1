@@ -137,12 +137,24 @@ public class TabletCheckIn {
         + (a.marketing() ? " · acepta publicidad" : " · sin publicidad");
   }
 
-  /** One in three takes the suite, when it is free; the others keep their room. */
+  /**
+   * The guest chooses their room on the tablet: one in three takes the suite, when it is free; the others
+   * pick another free room of their type (the reservation changes, as when the desk changes it); with no
+   * other free, they keep theirs.
+   */
   String room(String stayId) {
     var stay = queries.view(stayId).stay();
     if (!SUITE_UPGRADE.equals(stay.roomNumber()) && Math.floorMod(DemoDocuments.hash("upgrade:" + stayId), 3L) == 0
         && rooms.changeRoom(stayId, SUITE_UPGRADE).isPresent()) {
       return "Ha elegido el upgrade: suite " + SUITE_UPGRADE;
+    }
+    var free = rooms.freeRoomsOfItsType(stayId);
+    if (!free.isEmpty()) {
+      var chosen = free.get((int) Math.floorMod(DemoDocuments.hash("room:" + stayId), (long) free.size()));
+      if (rooms.changeRoom(stayId, chosen.number()).isPresent()) {
+        return "Ha elegido la habitación " + chosen.number() + " (" + chosen.typeLabel() + ")"
+            + (stay.roomNumber() == null ? "" : " en lugar de la " + stay.roomNumber());
+      }
     }
     return "Se queda con su habitación" + (stay.roomNumber() == null ? " (" + stay.roomType() + ")" : " " + stay.roomNumber());
   }

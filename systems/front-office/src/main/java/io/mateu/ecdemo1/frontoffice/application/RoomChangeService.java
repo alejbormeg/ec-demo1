@@ -39,6 +39,22 @@ public class RoomChangeService {
     return links.stateOf(stayId).map(s -> s.startsWith("Opera: rechazado (check-in)")).orElse(false);
   }
 
+  /**
+   * The free rooms of the stay's room type, other than its own — what a guest choosing their room is
+   * offered: the PMS's rooms of that type, or, without them, the rooms on the stay's floor.
+   */
+  public java.util.List<Room> freeRoomsOfItsType(String stayId) {
+    var stay = stays.findById(stayId).orElse(null);
+    if (stay == null) {
+      return java.util.List.of();
+    }
+    var ofType = pmsRooms.ofType(stay.roomType());
+    var candidates = !ofType.isEmpty() ? ofType : stay.roomNumber() == null ? java.util.List.<Room>of()
+        : rooms.findByNumber(stay.roomNumber()).map(r -> rooms.findByFloor(r.floor())).orElse(java.util.List.of());
+    return candidates.stream().filter(Room::assignable)
+        .filter(r -> !r.number().equals(stay.roomNumber())).toList();
+  }
+
   /** The room the stay moved to; empty if that room does not exist or is not free. */
   @Transactional
   public Optional<Room> changeRoom(String stayId, String roomNumber) {
