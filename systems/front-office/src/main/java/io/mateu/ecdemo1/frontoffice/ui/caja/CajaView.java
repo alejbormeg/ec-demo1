@@ -48,6 +48,14 @@ import org.springframework.stereotype.Service;
 @Setter
 @Title("Caja")
 @FormLayout(columns = 1)
+// the email only for a payment link, the reference only for a transfer — decided in the browser as the
+// desk picks the way to pay
+@io.mateu.uidl.annotations.Rule(filter = "true", action = io.mateu.uidl.data.RuleAction.SetDataValue,
+    fieldName = "email", fieldAttribute = io.mateu.uidl.data.RuleFieldAttribute.hidden, value = "",
+    expression = "state.forma != 'LINK'", actionId = "", result = io.mateu.uidl.data.RuleResult.Continue)
+@io.mateu.uidl.annotations.Rule(filter = "true", action = io.mateu.uidl.data.RuleAction.SetDataValue,
+    fieldName = "referencia", fieldAttribute = io.mateu.uidl.data.RuleFieldAttribute.hidden, value = "",
+    expression = "state.forma != 'TRANSFERENCIA'", actionId = "", result = io.mateu.uidl.data.RuleResult.Continue)
 @Service
 @Scope("prototype")
 public class CajaView implements PostHydrationHandler, ToolbarSupplier, ActionHandler {
@@ -83,7 +91,7 @@ public class CajaView implements PostHydrationHandler, ToolbarSupplier, ActionHa
   @Label("")
   Callable<Component> cuenta = this::cuenta;
 
-  @Section("Cobrar")
+  @io.mateu.uidl.annotations.Tab("Cobrar")
   @Label("Tipo")
   Tipo tipo = Tipo.COBRO;
 
@@ -102,7 +110,10 @@ public class CajaView implements PostHydrationHandler, ToolbarSupplier, ActionHa
   @Label("")
   Button cobrar = new Button("Cobrar", "cobrar");
 
-  @Section("Crédito")
+  @io.mateu.uidl.annotations.Tab("Crédito")
+  @Label("")
+  Callable<Component> credito = this::credito;
+
   @Label("Límite de crédito (vacío: el de la preautorización)")
   BigDecimal limite;
 
@@ -118,11 +129,11 @@ public class CajaView implements PostHydrationHandler, ToolbarSupplier, ActionHa
   @Label("")
   Button restablecerCredito = new Button("Restablecer crédito", "restablecerCredito");
 
-  @Section("Cobros, recibos y proforma")
+  @io.mateu.uidl.annotations.Tab("Cobros y recibos")
   @Label("")
   Callable<Component> cobros = this::cobros;
 
-  @Section("Devolver o anular")
+  @io.mateu.uidl.annotations.Tab("Devolver o anular")
   @Label("")
   Callable<Component> devoluciones = this::devoluciones;
 
@@ -150,15 +161,25 @@ public class CajaView implements PostHydrationHandler, ToolbarSupplier, ActionHa
         + " · Cargos " + Receipts.amount(a.charges(), c) + " · Cobrado " + Receipts.amount(a.paid(), c)
         + (a.deposits().signum() > 0 ? " (anticipos " + Receipts.amount(a.deposits(), c) + ")" : "");
     var saldo = "Saldo pendiente: " + Receipts.amount(a.due(), c);
+    return io.mateu.uidl.data.VerticalLayout.builder().style("width: 100%; gap: .5rem;").content(List.of(
+        Text.builder().text(saldo).container(io.mateu.uidl.data.TextContainer.h2).style("margin: 0;").build(),
+        Text.builder().text(resumen).noMargins(true).build())).build();
+  }
+
+  /** Where the stay's credit stands — its limit, over it, or cancelled —, over the fields that change it. */
+  Component credito() {
+    if (stayId == null || queries.find(stayId).isEmpty()) {
+      return Text.builder().text("").build();
+    }
+    var a = cashier.account(stayId);
+    var c = a.currency();
     var credito = a.creditCancelled()
         ? "Crédito cancelado" + (a.creditReason() == null ? "" : " — " + a.creditReason())
             + ": nada se carga a la habitación sin cobrarlo"
         : "Límite de crédito " + Receipts.amount(a.creditLimit(), c) + (a.limitSet() ? "" : " (la preautorización)")
             + (a.overLimit() ? " — superado: pide un cobro o un anticipo" : "");
-    return io.mateu.uidl.data.VerticalLayout.builder().style("width: 100%; gap: .5rem;").content(List.of(
-        Text.builder().text(saldo).container(io.mateu.uidl.data.TextContainer.h2).style("margin: 0;").build(),
-        Text.builder().text(resumen).noMargins(true).build(),
-        Notice.builder().theme(a.creditCancelled() || a.overLimit() ? "warning" : "info").text(credito).build())).build();
+    return Notice.builder().theme(a.creditCancelled() || a.overLimit() ? "warning" : "info").text(credito)
+        .fullWidth(true).build();
   }
 
   /** One Element per page (Mateu gives them all the same id): the proforma's link and every payment, with its receipt. */
