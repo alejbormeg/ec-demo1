@@ -28,6 +28,14 @@ misma en todos los módulos (`mateu.version`, hoy `3.0-alpha.415`).
   id + " no encontrada")`, no «No stay X» ni un `Optional.get()` pelado (sin mensaje útil, Mateu pone uno
   genérico con el id). Una acción sobre una pantalla que sí existe no cambia: sigue siendo un error.
 
+
+**Desde la `3.0-alpha.415`, cada shell necesita `MATEU_SELF_BASE_URL`.** Mateu resuelve un `RemoteMenu`
+relativo (`/_booking`…) contra `mateu.self-base-url` y ya no contra el `Origin` de la petición, que era un
+SSRF. Sin esa variable, el shell se llama a sí mismo (`localhost:8101/_booking/…`, 404) y todas las
+pantallas remotas fallan. Su valor es el host público de cada consola (`https://ec1.mateu.io`,
+`https://rw.ec1.mateu.io`, `https://console.ec1.mateu.io`, `https://rw-console.ec1.mateu.io`), porque el
+gateway enruta cada `/_<servicio>` por host. `deploy/local/up.sh` lo traduce a `http://*.localhost:8800`.
+
 ## Subir de versión
 
 1. Mirar la última publicada en Maven Central

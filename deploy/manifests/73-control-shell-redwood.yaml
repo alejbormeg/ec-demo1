@@ -37,6 +37,11 @@ spec:
           env:
             - name: SERVER_PORT
               value: "8112"
+            # Mateu 3.0-alpha.415 resolves a relative RemoteMenu (/_booking…) against this, not the request's
+            # Origin (SSRF): without it the shell calls itself (localhost) and every remote screen is a 404.
+            # The console's public host, which the gateway routes each /_<service> on.
+            - name: MATEU_SELF_BASE_URL
+              value: https://rw-console.ec1.mateu.io
             - name: KEYCLOAK_ISSUER_URI
               value: https://auth.ec1.mateu.io/realms/ec-demo1
             - name: KEYCLOAK_JWKS_URI

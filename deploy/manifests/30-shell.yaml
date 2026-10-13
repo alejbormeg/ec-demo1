@@ -41,6 +41,11 @@ spec:
               value: "8101"
             # The issuer is the public URL, because that is what the `iss` claim says and Spring
             # checks it. The keys come from the Service, so startup does not wait on the ingress.
+            # Mateu 3.0-alpha.415 resolves a relative RemoteMenu (/_booking…) against this, not the request's
+            # Origin (SSRF): without it the shell calls itself (localhost) and every remote screen is a 404.
+            # The console's public host, which the gateway routes each /_<service> on.
+            - name: MATEU_SELF_BASE_URL
+              value: https://ec1.mateu.io
             - name: KEYCLOAK_ISSUER_URI
               value: https://auth.ec1.mateu.io/realms/ec-demo1
             - name: KEYCLOAK_JWKS_URI
