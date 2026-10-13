@@ -43,7 +43,7 @@ spec:
             capabilities: { drop: ["ALL"] }
       containers:
         - name: front-office
-          image: miguelperezcolom/ec-demo1-front-office:0.71.2
+          image: miguelperezcolom/ec-demo1-front-office:0.71.3
           env:
             # Traces to Tempo: taking a stay from front-office-commands joins the trace of the booking
             # that wrote it into Opera.
