@@ -16,7 +16,7 @@
     <description>The customer MDM (HLA CRM-MDM): owner of the golden record and of identity resolution; Salesforce is its cleaning engine and stewardship surface, not its master</description>
     <properties>
         <java.version>21</java.version>
-        <mateu.version>3.0-alpha.417</mateu.version>
+        <mateu.version>3.0-alpha.419</mateu.version>
         <spring-ai.version>1.0.0</spring-ai.version>
         <lombok.version>1.18.44</lombok.version>
         <eventconductor.version>2.23.1</eventconductor.version>

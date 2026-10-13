@@ -35,7 +35,7 @@ spec:
         seccompProfile: { type: RuntimeDefault }
       containers:
         - name: docs
-          image: miguelperezcolom/ec-demo1-docs:0.4.13
+          image: miguelperezcolom/ec-demo1-docs:0.4.14
           ports:
             - { name: http, containerPort: 8080 }
           readinessProbe:

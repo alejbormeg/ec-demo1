@@ -54,7 +54,7 @@ spec:
             capabilities: { drop: ["ALL"] }
       containers:
         - name: content
-          image: miguelperezcolom/ec-demo1-content:0.71.0
+          image: miguelperezcolom/ec-demo1-content:0.72.0
           env:
             - name: SERVER_PORT
               value: "8104"
