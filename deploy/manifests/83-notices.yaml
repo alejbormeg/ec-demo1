@@ -47,7 +47,7 @@ spec:
             capabilities: { drop: ["ALL"] }
       containers:
         - name: notices
-          image: miguelperezcolom/ec-demo1-notices:0.69.0
+          image: miguelperezcolom/ec-demo1-notices:0.71.0
           env:
             - name: OTEL_SERVICE_NAME
               value: notices

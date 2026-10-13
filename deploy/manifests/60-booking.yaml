@@ -53,7 +53,7 @@ spec:
             capabilities: { drop: ["ALL"] }
       containers:
         - name: booking
-          image: miguelperezcolom/ec-demo1-booking:0.69.0
+          image: miguelperezcolom/ec-demo1-booking:0.71.0
           env:
             # Traces to Tempo, the one the engine exports to: a booking's trace runs from the CRS through
             # this service and the orchestrator (docs: deploy/observability, "Trazas de una reserva").
