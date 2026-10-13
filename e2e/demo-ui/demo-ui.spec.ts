@@ -479,9 +479,10 @@ test.describe.serial(`demo, UI only (${RENDERER})`, () => {
 
     // ── 9 ──────────────────────────────────────────────────────────────────────────────────────────
     // Verified live on the local cluster (2026-10-09): the check-in's «Escanear documento», «Simular
-    // pasaporte nuevo», «Nº Riu Class o email» + «Confirmar cliente», «Nombre»/«Apellidos»/«Fecha de
-    // nacimiento» + «Buscar por nombre», the room cards, «Enviar a tablet», «Confirmar check-in»; the
-    // stay's «Check-out» and «Confirmar — €…».
+    // pasaporte nuevo», the room cards, «Enviar a tablet», «Confirmar check-in»; the stay's «Check-out» and
+    // «Confirmar — €…». Since 2026-10-13 the desk confirms and searches from the kárdex editor («Rellenar a
+    // mano» / «Edit», its «Nº Riu Class», «Nombre»/«Apellidos»/«Fecha de nacimiento», «Save») — not yet run
+    // live.
     test('9 · a known customer recognised at the check-in, and their stay in the history and Riu Class', async ({}, info) => {
         test.setTimeout(75 * 60_000)
         const ui = new Ui(page, info)
@@ -531,6 +532,12 @@ test.describe.serial(`demo, UI only (${RENDERER})`, () => {
             await ui.go(`${FO}/checkin/${locator}`, /Check-In/)
             await ui.waitText(/Documento|Habitación/, `the check-in of ${locator} never opened`)
         }
+        // what the guest says, written in the pax's kárdex: saved, a Riu Class number confirms who they are
+        const riuClassInTheKardex = async (number: string) => {
+            await ui.click(ui.button('Edit'), 4_000)
+            await ui.page.getByLabel('Nº Riu Class', { exact: true }).first().fill(number)
+            await ui.click(ui.button('Save'), 6_000)
+        }
 
         // 1 · The document we already know: certainty, with their history and their Riu Class tier.
         await checkIn(byDocument)
@@ -547,8 +554,7 @@ test.describe.serial(`demo, UI only (${RENDERER})`, () => {
         await expect.poll(offered(known2.guestName), { message: 'a new passport did not ask «¿es usted…?»', timeout: 60_000 })
             .toBe(true)
         await ui.checkpoint('f9-possible-by-passport')
-        await ui.page.getByLabel('Nº Riu Class o email').first().fill(known2.riuClass)
-        await ui.click(ui.button('Confirmar cliente'), 6_000)
+        await riuClassInTheKardex(known2.riuClass)
         await expect.poll(recognised(known2.guestName), { message: 'the Riu Class number did not confirm the customer', timeout: 60_000 })
             .toBe(true)
         await ui.checkpoint('f9-confirmed-by-riu-class')
@@ -558,27 +564,27 @@ test.describe.serial(`demo, UI only (${RENDERER})`, () => {
 
         // 3 · No document: by name and birth date only possible; by Riu Class number, certainty.
         const pointsBefore = await riuClassPoints(ui, known3.riuClass) // read now: it leaves the check-in
+        // the kárdex filled in by hand: saved with name, surnames and birth date, it looks for who they may be
         await checkIn(byHand)
+        await ui.click(ui.button('Rellenar a mano'), 4_000)
         const [first3, ...rest3] = known3.guestName.split(' ')
-        await ui.page.getByLabel('Nombre', { exact: true }).last().fill(first3)
-        await ui.page.getByLabel('Apellidos', { exact: true }).last().fill(rest3.join(' '))
+        await ui.page.getByLabel('Nombre', { exact: true }).first().fill(first3)
+        await ui.page.getByLabel('Apellidos', { exact: true }).first().fill(rest3.join(' '))
         const [y, m, d] = known3.birthDate.split('-')
-        const birth = ui.page.getByLabel('Fecha de nacimiento').last()
+        const birth = ui.page.getByLabel('Fecha de nacimiento').first()
         await birth.fill(`${d}/${m}/${y}`)
         await birth.press('Enter')
-        await ui.click(ui.button('Buscar por nombre'), 6_000)
+        await ui.click(ui.button('Save'), 6_000)
         await expect.poll(offered(known3.guestName), { message: 'the search by name and birth date found nobody', timeout: 60_000 })
             .toBe(true)
-        await ui.page.getByLabel('Nº Riu Class o email').first().fill(known3.riuClass)
-        await ui.click(ui.button('Confirmar cliente'), 6_000)
+        await riuClassInTheKardex(known3.riuClass)
         await expect.poll(recognised(known3.guestName), { message: 'the Riu Class number did not confirm the customer', timeout: 60_000 })
             .toBe(true)
         await ui.checkpoint('f9-known-by-hand')
 
         // The stay of the customer found by hand, to the end: the check-in (document, room, signature) and
         // the check-out — the closed stay is the known customer's, in the history and in Riu Class.
-        await ui.click(ui.button('Escanear documento'), 9_000)
-        // the wizard stays on the pax after a scan that recognised them: on to the room
+        // the kárdex saved by hand is the pax's identity, and the check-in stays on them: on to the room
         await ui.click(ui.button('Siguiente'), 4_000)
         await ui.waitText(/Lista · /, 'the check-in never showed the rooms')
         await ui.click(ui.page.getByText(/^\d{3,4}$/).first(), 4_000) // the first room's card: ready ones come first

@@ -19,11 +19,20 @@ cada huésped de la lista), por huésped:
 | **Posible cliente conocido: ¿es usted…?** | El documento es de un cliente con otro nombre, o de varios (ambiguo); o no se conoce y hay **candidatos** con el mismo nombre y fecha de nacimiento | Solo nombre y fecha de nacimiento de los candidatos. **Nunca el historial** |
 | Nada | No se le encuentra, o el MDM no contesta | El check-in sigue igual |
 
-Debajo del panel, dos búsquedas para preguntar al cliente:
+En el check-in, lo que dice el cliente se escribe en su **kárdex** (bloque *Documento*: *Rellenar a mano*
+o *Edit*), y al guardarlo:
 
-- **Nº Riu Class o email** → *Confirmar cliente*: da certeza. Un número de 8 cifras se completa con `RC`
-  delante.
-- **Nombre, apellidos y fecha de nacimiento** → *Buscar por nombre*: solo da «posible».
+- **Nº Riu Class** (o un **email** nuevo que la cadena conozca) → da certeza. Un número de 8 cifras se
+  completa con `RC` delante.
+- Sin certeza, **nombre, apellidos y fecha de nacimiento** → solo da «posible».
+
+En la ficha de la reserva siguen las dos búsquedas debajo del panel (*Confirmar cliente* y *Buscar por
+nombre*).
+
+El kárdex lleva apellidos, nombre, email, nº Riu Class, fecha de nacimiento, sexo, documento, tipo,
+caducidad, expedición, nacionalidad, idioma, dirección, población, código postal, provincia, ciudad de
+nacimiento, país de residencia, teléfono, fax y si es acompañante, cárdex provisional o acepta publicidad.
+El país de expedición y el adulto responsable solo aparecen cuando una norma de registro los pide.
 
 **Al confirmar**, si el documento escaneado era nuevo, el front office se lo dice al MDM
 (`RecordScannedIdentity` con `confirmedCustomerId`): el MDM une el código provisional del huésped en el
@@ -106,7 +115,8 @@ Los tres casos:
 2. **Un pasaporte nuevo del mismo cliente**: *Simular pasaporte nuevo* (mismo nombre y fecha de nacimiento,
    otro número) → «Posible cliente conocido» → confirmar con su número Riu Class → «Cliente conocido», y el
    pasaporte queda en el MDM como otro documento suyo.
-3. **Sin documento**: la búsqueda por número Riu Class o email.
+3. **Sin documento**: *Rellenar a mano* con nombre, apellidos y fecha de nacimiento → «Posible cliente
+   conocido» → *Edit* con su número Riu Class → «Cliente conocido».
 
 Al hacer el **check-out**, la estancia llega al historial (`StayClosed`) y suma puntos Riu Class.
 

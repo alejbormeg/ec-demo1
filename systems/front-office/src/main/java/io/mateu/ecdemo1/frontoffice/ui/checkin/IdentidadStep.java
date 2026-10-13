@@ -145,60 +145,14 @@ public class IdentidadStep implements WizardStep {
     @Text(size = TextSize.xs, noMargins = true)
     String historyInfo = "yyy";
 
-  // ── Cliente: who the selected pax is in the chain (recognised at the scan, or confirmed here) ──
-  // «Cliente conocido» with the summary of their stays and their Riu Class standing, or «Posible
-  // cliente conocido» with only names and birth dates; and the desk's own search, asking the guest:
-  // Riu Class number or email (certainty), or name and birth date (only possible). The buttons
-  // dispatch confirmarCliente / buscarClientePorNombre on the wizard, which reads these fields.
+  // ── Cliente: who the selected pax is in the chain (recognised at the scan, or when the desk saves
+  // the pax's kárdex with what the guest says — see DocumentoView): «Cliente conocido» with the summary
+  // of their stays and their Riu Class standing, or «Posible cliente conocido» with only names and
+  // birth dates.
   @Section(value = "Cliente", zone = "side")
   @Label("")
   Callable<Component> cliente = () -> io.mateu.ecdemo1.frontoffice.ui.common.CustomerPanels.panel(
       FrontOffice.recognition(stayId, selectedPax < 1 ? 1 : selectedPax));
-
-  @Label("Nº Riu Class o email")
-  @io.mateu.uidl.annotations.Help("Pregúntaselo al huésped: confirma quién es y muestra su historial")
-  String clienteRiuClassOEmail;
-
-  @Label("")
-  Callable<Component> confirmarCliente = () -> Button.builder()
-      .id("confirmar-cliente")
-      .label("Confirmar cliente")
-      .actionId("confirmarCliente")
-      .build();
-
-  @Label("Nombre")
-  String clienteNombre;
-
-  @Label("Apellidos")
-  String clienteApellidos;
-
-  @Label("Fecha de nacimiento")
-  LocalDate clienteNacimiento;
-
-  @Label("")
-  Callable<Component> buscarCliente = () -> Button.builder()
-      .id("buscar-cliente")
-      .label("Buscar por nombre")
-      .actionId("buscarClientePorNombre")
-      .build();
-
-  /** What the desk typed in the Cliente search survives the step being rebuilt on every request. */
-  public void keepSearch(IdentidadStep before) {
-    if (before == null) {
-      return;
-    }
-    clienteRiuClassOEmail = before.clienteRiuClassOEmail;
-    clienteNombre = before.clienteNombre;
-    clienteApellidos = before.clienteApellidos;
-    clienteNacimiento = before.clienteNacimiento;
-  }
-
-  public void clearSearch() {
-    clienteRiuClassOEmail = null;
-    clienteNombre = null;
-    clienteApellidos = null;
-    clienteNacimiento = null;
-  }
 
     public IdentidadStep load(HttpRequest httpRequest) {
         // this instance is created fresh on every request — derive the stay from the route
