@@ -114,20 +114,24 @@ public class CajaView implements PostHydrationHandler, ToolbarSupplier, ActionHa
   @Label("")
   Callable<Component> credito = this::credito;
 
+
   @Label("Límite de crédito (vacío: el de la preautorización)")
   BigDecimal limite;
 
   @Label("Motivo (para cancelar el crédito)")
   String motivo;
 
-  @Label("")
-  Button fijarLimite = new Button("Fijar límite", "fijarLimite");
 
+  // the credit's buttons in one block of the tab: as button fields in a row, Redwood moved them to the
+  // form's foot, under every tab
   @Label("")
-  Button cancelarCredito = new Button("Cancelar crédito", "cancelarCredito");
-
-  @Label("")
-  Button restablecerCredito = new Button("Restablecer crédito", "restablecerCredito");
+  Callable<Component> botonesCredito = () -> io.mateu.uidl.data.HorizontalLayout.builder()
+      .style("gap: .5rem; flex-wrap: wrap;")
+      .content(List.of(
+          Button.builder().id("fijar-limite").label("Fijar límite").actionId("fijarLimite").build(),
+          Button.builder().id("cancelar-credito").label("Cancelar crédito").actionId("cancelarCredito").build(),
+          Button.builder().id("restablecer-credito").label("Restablecer crédito").actionId("restablecerCredito").build()))
+      .build();
 
   @io.mateu.uidl.annotations.Tab("Cobros y recibos")
   @Label("")
