@@ -170,8 +170,8 @@ public class DocumentoView extends EditableView<Object, DocumentoView.DocumentoE
   @SubscribeTo(event = "pax-seleccionado", action = "cambiarPax")
   public static class DocumentoEditor implements io.mateu.uidl.interfaces.RequiredSupplier,
       io.mateu.uidl.interfaces.VisibilitySupplier {
-    @Section(value = "", columns = 2, frameless = true)
-    @io.mateu.uidl.annotations.Colspan(2)
+    @Section(value = "", columns = 4, frameless = true)
+    @io.mateu.uidl.annotations.Colspan(4)
     @io.mateu.uidl.annotations.Notice(theme = "info")
     String baseLegal = "";
 
@@ -458,6 +458,17 @@ public class DocumentoView extends EditableView<Object, DocumentoView.DocumentoE
       return;
     }
     persist(edited);
+  }
+
+  /** The kárdex of a pax as the editor shows it, from a fresh island (a prototype bean, asked of Mateu's provider). */
+  public static DocumentoEditor forPax(String stayId, int pax) {
+    return io.mateu.uidl.di.MateuBeanProvider.getBean(DocumentoView.class).kardexOf(stayId, pax);
+  }
+
+  /** «Klaus Hoffmann» from nombre and apellidos; null with neither. */
+  public static String nombreCompleto(String nombre, String apellidos) {
+    var full = ((nombre == null ? "" : nombre.trim()) + " " + (apellidos == null ? "" : apellidos.trim())).trim();
+    return full.isEmpty() ? null : full;
   }
 
   /** The kárdex of a pax as the editor shows it — for another screen's form (the reservation's drawer). */

@@ -373,7 +373,7 @@ public class ReservaOverview
   public boolean supportsAction(String actionId) {
     return List.of("iniciarCheckin", "irCheckout", "volverReserva", "mensajeHuesped",
             "opWifi", "opLlave", "opHabitacion", "elegirHabitacion", "upgrade360",
-            "volverHabitacion", "escanearPax", "rellenarPax", "guardarPax", "refrescarReserva",
+            "volverHabitacion", "escanearPax", "rellenarPax", "refrescarReserva",
             "siguienteReserva", "volverListado",
             "opCobro", "metodoCobro", "confirmarCobro",
             "opCargos", "postearCargo", "resolverIncidencia", "lateCheckout",
@@ -471,14 +471,6 @@ public class ReservaOverview
       case "rellenarPax" -> {
         paxSeleccionado = paxDe(httpRequest);
         yield drawerPax();
-      }
-      case "guardarPax" -> {
-        // el kárdex como lo guarda el check-in, y lo que el huésped dijo reconoce al cliente
-        var aviso = documentoView().saveKardex(stayId, paxSeleccionado, kardexDelDrawer(httpRequest));
-        var nombre = nameOf(paxSeleccionado);
-        // cierra el drawer emitiendo el evento al que está suscrita la página (refresco del rail)
-        yield List.of(new Message(aviso != null ? aviso : "Kárdex guardado — " + nombre),
-            UICommand.closeModal("cardex-guardado"));
       }
       case "refrescarReserva" -> this;
       case "opEmpresa" -> drawerEmpresa();
@@ -759,45 +751,16 @@ public class ReservaOverview
     var guest = view.guest();
     var companion = paxSeleccionado <= 1 ? null : view.stay().companionAt(paxSeleccionado);
     var completo = paxSeleccionado <= 1 ? guest.identityComplete() : companion != null && companion.identityComplete();
-    var editor = documentoView().kardexOf(stayId, paxSeleccionado);
-    var initialData = new HashMap<String, Object>();
-    initialData.put("stayId", stayId);
-    initialData.put("paxSeleccionado", paxSeleccionado);
-    KARDEX_JSON.convertValue(editor, java.util.Map.class).forEach((campo, valor) ->
-        initialData.put(HuespedesPanel.PREFIJO_KARDEX + campo, valor == null ? "" : valor));
+    var titulo = (completo ? "Validar / editar huésped " : "Registrar huésped ") + paxSeleccionado + " — "
+        + nameOf(paxSeleccionado);
+    // the check-in's kárdex as a form of its own: its four columns, its state and its save
     return io.mateu.uidl.data.Drawer.builder()
-        .headerTitle((completo ? "Validar / editar huésped " : "Registrar huésped ")
-            + paxSeleccionado + " — " + nameOf(paxSeleccionado))
-        .width("44rem")
-        .content(huespedes().formularioPax(editor))
-        .initialData(initialData)
+        .width("72rem")
+        .content(new io.mateu.uidl.data.EmbeddedView(KardexDrawerForm.of(stayId, paxSeleccionado, titulo)))
         .build();
   }
 
-  static final tools.jackson.databind.json.JsonMapper KARDEX_JSON = tools.jackson.databind.json.JsonMapper.builder()
-      .disable(tools.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES).build();
 
-  /** The check-in's kárdex editor of the pax, for its form here (a prototype bean, asked of Mateu's provider). */
-  private DocumentoView documentoView() {
-    return io.mateu.uidl.di.MateuBeanProvider.getBean(DocumentoView.class);
-  }
-
-  /** The kárdex the drawer posted: its {@code k_} fields, as the check-in's editor. */
-  static DocumentoView.DocumentoEditor kardexDelDrawer(HttpRequest httpRequest) {
-    var estado = httpRequest.runActionRq().componentState();
-    var campos = new HashMap<String, Object>();
-    if (estado != null) {
-      estado.forEach((clave, valor) -> {
-        if (clave.startsWith(HuespedesPanel.PREFIJO_KARDEX) && valor != null && !"".equals(valor)) {
-          var campo = clave.substring(HuespedesPanel.PREFIJO_KARDEX.length());
-          // a date field may post a time too
-          campos.put(campo, valor instanceof String texto && texto.matches("\\d{4}-\\d{2}-\\d{2}T.*")
-              ? texto.substring(0, 10) : valor);
-        }
-      });
-    }
-    return KARDEX_JSON.convertValue(campos, DocumentoView.DocumentoEditor.class);
-  }
 
   /** The header's EMPRESA, chosen or corrected: its drawer. */
   private static Button empresaButton() {
