@@ -102,7 +102,8 @@ public final class GuestHeaders {
     if (checkIn != null) {
       var fact = Fact.builder().label("CHECK-IN").value(checkIn);
       if (actions) {
-        fact.actionId("enviarTableta").icon("vaadin:sign-in").actionLabel("Check-in en tableta");
+        // Oracle's own tablet icon: Redwood takes oj-ux-ico-* as they come (Mateu maps no vaadin:tablet)
+        fact.actionId("enviarTableta").icon("oj-ux-ico-tablet-portrait").actionLabel("Check-in en tableta");
       }
       facts.add(fact.build());
     }
