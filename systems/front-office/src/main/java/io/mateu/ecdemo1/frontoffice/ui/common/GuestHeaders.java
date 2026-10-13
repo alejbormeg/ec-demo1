@@ -27,22 +27,9 @@ public final class GuestHeaders {
     return arrivalHeader(stayId, false);
   }
 
-  /**
-   * The check-in's banner: the arrival's, and beside it the button back to the reservation's page
-   * (volverReserva) — the wizard has no toolbar of its own to leave it by. A plain button, not a fact's:
-   * a fact's action answered in a banner inside the page (Mateu 416, Redwood) drew the reservation over
-   * the wizard instead of replacing it.
-   */
+  /** The check-in's banner: the arrival's (the way back to the reservation is in the wizard's buttons). */
   public static Component checkInHeader(String stayId) {
-    var volver = io.mateu.uidl.data.Button.builder().id("volver-reserva").label("← Volver a la reserva")
-        .actionId("volverReserva").buttonStyle(io.mateu.uidl.data.ButtonStyle.tertiary).build();
-    return io.mateu.uidl.data.HorizontalLayout.builder()
-        .style("width: 100%; gap: 1rem; align-items: flex-start;")
-        .content(List.of(
-            io.mateu.uidl.data.VerticalLayout.builder().style("flex: 1; min-width: 0;")
-                .content(List.of(arrivalHeader(stayId, false))).build(),
-            volver))
-        .build();
+    return arrivalHeader(stayId, false);
   }
 
   /** The same; {@code companyEditable}: EMPRESA carries the button that chooses or corrects it (opEmpresa). */

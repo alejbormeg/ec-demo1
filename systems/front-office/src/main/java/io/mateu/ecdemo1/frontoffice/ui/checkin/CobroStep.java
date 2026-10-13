@@ -57,4 +57,11 @@ public class CobroStep implements WizardStep {
         }
         return notice.build();
       };
+
+  /** Back to the reservation's page — in the wizard's buttons, with Atrás and Siguiente. */
+  @io.mateu.uidl.annotations.Toolbar(buttonStyle = io.mateu.uidl.data.ButtonStyle.tertiary)
+  @io.mateu.uidl.annotations.Label("Volver a la reserva")
+  public Object volverReserva() {
+    return java.net.URI.create("/reservas/" + stayId);
+  }
 }
