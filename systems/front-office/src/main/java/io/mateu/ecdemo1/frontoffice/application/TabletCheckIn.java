@@ -35,8 +35,8 @@ public class TabletCheckIn {
 
   /** The steps, as the desk's progress dialog names them. */
   public static final List<String> STEPS = List.of("Escaneando el documento en la tableta…",
-      "El huésped completa sus datos…", "El huésped elige habitación…", "El huésped garantiza la estancia…",
-      "El huésped firma el registro…");
+      "El huésped completa sus datos…", "El huésped elige habitación…", "El huésped elige sus extras…",
+      "El huésped garantiza la estancia…", "El huésped firma el registro…");
 
   final StayQueries queries;
   final GuestRepository guests;
@@ -45,9 +45,12 @@ public class TabletCheckIn {
   final CheckInService checkIn;
   final Cashier cashier;
   final StayAudit audit;
+  final io.mateu.ecdemo1.frontoffice.domain.catalog.AddOnCatalogRepository addOns;
 
   public TabletCheckIn(StayQueries queries, GuestRepository guests, KardexService kardex, RoomChangeService rooms,
-                       CheckInService checkIn, Cashier cashier, StayAudit audit) {
+                       CheckInService checkIn, Cashier cashier, StayAudit audit,
+                       io.mateu.ecdemo1.frontoffice.domain.catalog.AddOnCatalogRepository addOns) {
+    this.addOns = addOns;
     this.queries = queries;
     this.guests = guests;
     this.kardex = kardex;
@@ -57,16 +60,17 @@ public class TabletCheckIn {
     this.audit = audit;
   }
 
-  /** Runs step {@code n} (1…5) of the guest's tablet check-in; what the guest did, for the desk. */
+  /** Runs step {@code n} (1…6) of the guest's tablet check-in; what the guest did, for the desk. */
   public String step(String stayId, int n) {
     queries.find(stayId).orElseThrow(() -> new NoSuchElementException("Reserva " + stayId + " no encontrada"));
     return switch (n) {
       case 1 -> scan(stayId);
       case 2 -> data(stayId);
       case 3 -> room(stayId);
-      case 4 -> pay(stayId);
-      case 5 -> sign(stayId);
-      default -> throw new IllegalArgumentException("The tablet has 5 steps, not " + n);
+      case 4 -> extras(stayId);
+      case 5 -> pay(stayId);
+      case 6 -> sign(stayId);
+      default -> throw new IllegalArgumentException("The tablet has " + STEPS.size() + " steps, not " + n);
     };
   }
 
@@ -157,6 +161,30 @@ public class TabletCheckIn {
       }
     }
     return "Se queda con su habitación" + (stay.roomNumber() == null ? " (" + stay.roomType() + ")" : " " + stay.roomNumber());
+  }
+
+  /**
+   * The guest picks the optional supplements on the tablet — one or two of the catalogue's, none of
+   * those their tier already includes; one in four takes none —, and the ancillaries' selection closes,
+   * as when the desk does it (the same use case: the stay's add-ons and the check-in's operation).
+   */
+  String extras(String stayId) {
+    var optional = addOns.findAll().stream()
+        .filter(a -> a.includedLabel() == null || a.includedLabel().isBlank()).toList();
+    var chosen = new java.util.LinkedHashMap<String, Boolean>();
+    var hash = DemoDocuments.hash("extras:" + stayId);
+    if (!optional.isEmpty() && Math.floorMod(hash, 4L) != 0) {
+      var how = 1 + (int) Math.floorMod(hash / 4, 2L);
+      for (int i = 0; i < how && i < optional.size(); i++) {
+        chosen.put(optional.get((int) Math.floorMod(hash + 7L * i, (long) optional.size())).id(), true);
+      }
+    }
+    checkIn.extrasChosen(stayId, chosen);
+    if (chosen.isEmpty()) {
+      return "No quiere extras";
+    }
+    var names = optional.stream().filter(a -> chosen.containsKey(a.id())).map(a -> a.title()).toList();
+    return "Ha elegido " + String.join(" y ", names);
   }
 
   /** One in four pays the stay now (an advance, with its receipt); the others pre-authorize their card. */

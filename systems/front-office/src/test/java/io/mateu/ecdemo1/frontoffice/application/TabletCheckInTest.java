@@ -35,12 +35,15 @@ class TabletCheckInTest {
 
     var did = tablet.simulate(a.stayId());
 
-    assertThat(did).hasSize(5);
+    assertThat(did).hasSize(6);
     assertThat(did.get(0)).startsWith("Documento leído");
-    assertThat(did.get(4)).isEqualTo("Registro firmado en la tableta");
+    assertThat(did.get(3)).matches("Ha elegido .+|No quiere extras");
+    assertThat(did.get(5)).isEqualTo("Registro firmado en la tableta");
     var done = ops.of(a.stayId());
     assertThat(done.firma()).isTrue();
     assertThat(done.cobro()).isTrue();
+    // the ancillaries chosen on the tablet: the selection closed, as when the desk does it
+    assertThat(done.extras()).isTrue();
     assertThat(guests.findById(a.guestId()).orElseThrow().identityComplete()).isTrue();
     assertThat(kardex.kardexOf(a.stayId(), 1)).get().satisfies(k -> {
       assertThat(k.language()).isNotBlank();
