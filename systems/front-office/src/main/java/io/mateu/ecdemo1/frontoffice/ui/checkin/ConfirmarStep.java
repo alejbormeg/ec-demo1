@@ -40,7 +40,7 @@ public class ConfirmarStep implements WizardStep, io.mateu.uidl.interfaces.Visib
   // No section → full-width band across the top. Frameless: the header card brings its own chrome.
   @Section(value = "", frameless = true)
   @Label("")
-  Callable<Component> header = () -> GuestHeaders.arrivalHeader(stayId);
+  Callable<Component> header = () -> GuestHeaders.checkInHeader(stayId);
 
   // What the check-in still lacks (documents, signature): arriving, «Confirmar check-in» does not go
   // through without it — «Forzar check-in», with a reason, does —; in house (a forced check-in being

@@ -38,7 +38,7 @@ public class IdentidadStep implements WizardStep {
   @Section(value = "", columns = 2, frameless = true)
   @Colspan(2)
   @Label("")
-  Callable<Component> header = () -> GuestHeaders.arrivalHeader(stayId);
+  Callable<Component> header = () -> GuestHeaders.checkInHeader(stayId);
 
   // Left column: the Documento block is an ORCHESTRATED island (DocumentoView) whose state the
   // backend decides — sin datos (aviso + escanear), hay datos (property list + Edit) or editor.

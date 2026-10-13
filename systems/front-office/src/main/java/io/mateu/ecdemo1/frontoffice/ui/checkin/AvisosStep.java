@@ -34,7 +34,7 @@ public class AvisosStep implements WizardStep, VisibilitySupplier {
   @Hidden String fingerprint;
 
   @Label("")
-  Callable<Component> header = () -> GuestHeaders.arrivalHeader(stayId);
+  Callable<Component> header = () -> GuestHeaders.checkInHeader(stayId);
 
   @Label("")
   Callable<Component> avisos = () -> {

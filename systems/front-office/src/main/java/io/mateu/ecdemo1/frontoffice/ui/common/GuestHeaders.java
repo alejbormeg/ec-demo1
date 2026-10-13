@@ -27,6 +27,20 @@ public final class GuestHeaders {
     return arrivalHeader(stayId, false);
   }
 
+  /**
+   * The check-in's banner: the arrival's, and RESERVA — the stay — with the button back to its page
+   * (volverReserva): the wizard has no toolbar of its own to leave it by.
+   */
+  public static Component checkInHeader(String stayId) {
+    var header = (EntityHeader) arrivalHeader(stayId, false);
+    var facts = new ArrayList<Fact>(header.facts());
+    facts.add(0, Fact.builder().label("RESERVA").value(stayId).actionId("volverReserva")
+        .icon("oj-ux-ico-arrow-left").actionLabel("Volver a la reserva").build());
+    return EntityHeader.builder().id(header.id()).title(header.title()).badges(header.badges())
+        .subtitle(header.subtitle()).facts(facts).metricLabel(header.metricLabel()).metricValue(header.metricValue())
+        .metricCaption(header.metricCaption()).style(header.style()).cssClasses(header.cssClasses()).build();
+  }
+
   /** The same; {@code companyEditable}: EMPRESA carries the button that chooses or corrects it (opEmpresa). */
   public static Component arrivalHeader(String stayId, boolean companyEditable) {
     var view = FrontOffice.stayView(stayId);

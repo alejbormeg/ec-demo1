@@ -196,6 +196,9 @@ public class CheckInWizard extends Wizard {
   @Override
   public Object handleAction(String actionId, HttpRequest httpRequest) {
     switch (actionId) {
+      case "volverReserva" -> {
+        return java.net.URI.create("/reservas/" + stayId);
+      }
       case "pickRoom" -> {
         var item = param(httpRequest, "_item");
         if (item != null) {
@@ -359,7 +362,8 @@ public class CheckInWizard extends Wizard {
             "firmaCapturada",
             "preautorizado",
             "llaveGrabada",
-            "forzarCheckin")) {
+            "forzarCheckin",
+            "volverReserva")) {
       actions.add(Action.builder().id(id).build());
     }
     // stream two increments each: the in-flight state now, the confirmation 5 s later

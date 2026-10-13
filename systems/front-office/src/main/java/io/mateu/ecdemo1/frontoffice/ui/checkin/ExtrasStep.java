@@ -29,7 +29,7 @@ public class ExtrasStep implements WizardStep {
   @Hidden double extrasTotal;
 
   @Label("")
-  Callable<Component> header = () -> GuestHeaders.arrivalHeader(stayId);
+  Callable<Component> header = () -> GuestHeaders.checkInHeader(stayId);
 
   @Label("")
   Callable<Component> extrasEstancia =

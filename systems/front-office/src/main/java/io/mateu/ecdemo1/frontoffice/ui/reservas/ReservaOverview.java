@@ -476,7 +476,7 @@ public class ReservaOverview
         yield EmpresaPanel.busqueda(stayId, texto, empresas().search(texto), empresas().of(stayId).orElse(null));
       }
       case "elegirEmpresa" -> {
-        empresas().set(stayId, param(httpRequest, "_company"), DeskUser.name());
+        empresas().set(stayId, param(httpRequest, "_item"), DeskUser.name());
         var empresa = empresas().of(stayId).map(io.mateu.ecdemo1.frontoffice.infra.pms.PmsLinks.Company::name).orElse("");
         yield List.of(this, new Message("Se factura a " + empresa + " — enviado a Opera"), UICommand.closeModal());
       }

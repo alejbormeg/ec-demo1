@@ -46,9 +46,19 @@ final class EmpresaPanel {
       if (encontradas.isEmpty()) {
         contenido.add(Text.builder().text("Ninguna empresa del ERP coincide").style("margin: 0; opacity: .7;").build());
       }
-      for (var c : encontradas) {
-        contenido.add(Button.builder().label(c.name() + " · " + c.code() + (c.taxId() == null ? "" : " · " + c.taxId()))
-            .actionId("elegirEmpresa").parameters(Map.of("_company", c.code())).build());
+      if (!encontradas.isEmpty()) {
+        // a listing: a click on a company's row sets it (the row's id travels as _item)
+        contenido.add(io.mateu.uidl.data.StatusList.builder()
+            .rowActionId("elegirEmpresa")
+            .compact(true)
+            .style("width: 100%;")
+            .items(encontradas.stream().map(c -> io.mateu.uidl.data.StatusItem.builder()
+                .id(c.code())
+                .title(c.name())
+                .description(String.join(" · ", java.util.stream.Stream.of(c.code(), c.taxId(), c.city())
+                    .filter(v -> v != null && !v.isBlank()).toList()))
+                .build()).toList())
+            .build());
       }
     }
     return Drawer.builder()

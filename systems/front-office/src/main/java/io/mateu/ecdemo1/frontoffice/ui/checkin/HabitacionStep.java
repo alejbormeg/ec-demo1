@@ -32,7 +32,7 @@ public class HabitacionStep implements WizardStep {
   @Hidden boolean upgradeAnadido;
 
   @Label("")
-  Callable<Component> header = () -> GuestHeaders.arrivalHeader(stayId);
+  Callable<Component> header = () -> GuestHeaders.checkInHeader(stayId);
 
   @Label("")
   Callable<Component> preferenciasCliente =
