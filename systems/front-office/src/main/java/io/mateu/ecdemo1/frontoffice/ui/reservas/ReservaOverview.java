@@ -1,5 +1,7 @@
 package io.mateu.ecdemo1.frontoffice.ui.reservas;
 
+import io.mateu.ecdemo1.frontoffice.ui.checkin.DocumentoView;
+
 import io.mateu.ecdemo1.frontoffice.application.CheckInService;
 import io.mateu.ecdemo1.frontoffice.application.CheckOutService;
 import io.mateu.ecdemo1.frontoffice.application.FolioService;
@@ -161,22 +163,12 @@ public class ReservaOverview
   @Hidden boolean modoExtras;
   @Hidden boolean firmaEnviada;
 
-  // ── cardex manual del huésped seleccionado (el formulario abre en un drawer) ─
-  @Hidden String paxDocumento;
-  @Hidden String paxNombre;
-  @Hidden String paxEmail;
-  @Hidden String paxTelefono;
   @Hidden String metodoPago = "card";
   @Hidden String cargoBusqueda;
   @Hidden String ultimaBusqueda;
 
-  // ── «Cliente»: el pax cuyo reconocimiento se muestra y la búsqueda de recepción (Riu Class / email,
-  // o nombre + fecha de nacimiento) — campos de la página que pintan los FormField del panel ──────
+  // ── «Cliente»: el pax cuyo reconocimiento se muestra ──────
   @Hidden int paxCliente = 1;
-  @Hidden String clienteBusqueda;
-  @Hidden String clienteNombre;
-  @Hidden String clienteApellidos;
-  @Hidden String clienteNacimiento;
 
   /** Who each pax is in the chain; none in a test that builds the page by hand. */
   @Getter(AccessLevel.NONE) io.mateu.ecdemo1.frontoffice.application.Recognition recognition;
@@ -392,7 +384,7 @@ public class ReservaOverview
             "anularCargo", "comprobarHabitacion", "completarCheckin",
             // Mateu 392 refuses an action a component does not declare here («not an action»)
             "noShowPax", "confirmarNoShowPax", "cancelarNoShowPax", "guardarExtras",
-            "clientePax", "confirmarCliente", "buscarClientePorNombre", "abrirCaja", "enviarTableta")
+            "clientePax", "abrirCaja", "enviarTableta")
         .contains(actionId);
   }
 
@@ -480,40 +472,17 @@ public class ReservaOverview
         yield drawerPax();
       }
       case "guardarPax" -> {
-        kardex.registered(stayId, paxSeleccionado, paxDocumento, paxNombre, paxEmail, paxTelefono);
+        // el kárdex como lo guarda el check-in, y lo que el huésped dijo reconoce al cliente
+        var aviso = documentoView().saveKardex(stayId, paxSeleccionado, kardexDelDrawer(httpRequest));
         var nombre = nameOf(paxSeleccionado);
-        paxDocumento = null;
-        paxNombre = null;
-        paxEmail = null;
-        paxTelefono = null;
         // cierra el drawer emitiendo el evento al que está suscrita la página (refresco del rail)
-        yield List.of(new Message("Kárdex registrado — " + nombre), UICommand.closeModal("cardex-guardado"));
+        yield List.of(new Message(aviso != null ? aviso : "Kárdex guardado — " + nombre),
+            UICommand.closeModal("cardex-guardado"));
       }
       case "refrescarReserva" -> this;
       case "clientePax" -> {
         paxCliente = (int) Double.parseDouble(param(httpRequest, "paxIndex"));
         yield this;
-      }
-      case "confirmarCliente" -> {
-        if (recognition == null) {
-          yield new Message("El reconocimiento de clientes no está disponible");
-        }
-        var answer = recognition.confirm(stayId, paxCliente, DeskUser.name(), clienteBusqueda);
-        if (answer.done()) {
-          clienteBusqueda = null;
-        }
-        yield List.of(this, new Message((answer.done() ? "★ " : "") + answer.message()));
-      }
-      case "buscarClientePorNombre" -> {
-        if (recognition == null) {
-          yield new Message("El reconocimiento de clientes no está disponible");
-        }
-        var nombre = nameOf(paxCliente).trim().split("\\s+", 2);
-        var answer = recognition.searchByName(stayId, paxCliente,
-            blank(clienteNombre) ? nombre[0] : clienteNombre.trim(),
-            blank(clienteApellidos) ? (nombre.length > 1 ? nombre[1] : null) : clienteApellidos.trim(),
-            fecha(clienteNacimiento));
-        yield List.of(this, new Message(answer.message()));
       }
       case "opHabitacion" -> llegada().drawerHabitacion(stay());
       case "volverHabitacion" -> {
@@ -768,20 +737,44 @@ public class ReservaOverview
     var guest = view.guest();
     var companion = paxSeleccionado <= 1 ? null : view.stay().companionAt(paxSeleccionado);
     var completo = paxSeleccionado <= 1 ? guest.identityComplete() : companion != null && companion.identityComplete();
+    var editor = documentoView().kardexOf(stayId, paxSeleccionado);
     var initialData = new HashMap<String, Object>();
     initialData.put("stayId", stayId);
     initialData.put("paxSeleccionado", paxSeleccionado);
-    initialData.put("paxDocumento", orBlank(paxSeleccionado <= 1 ? guest.document() : companion == null ? null : companion.document()));
-    initialData.put("paxNombre", orBlank(nameOf(paxSeleccionado)));
-    initialData.put("paxEmail", orBlank(paxSeleccionado <= 1 ? guest.email() : companion == null ? null : companion.email()));
-    initialData.put("paxTelefono", orBlank(paxSeleccionado <= 1 ? guest.phone() : companion == null ? null : companion.phone()));
+    KARDEX_JSON.convertValue(editor, java.util.Map.class).forEach((campo, valor) ->
+        initialData.put(HuespedesPanel.PREFIJO_KARDEX + campo, valor == null ? "" : valor));
     return io.mateu.uidl.data.Drawer.builder()
         .headerTitle((completo ? "Validar / editar huésped " : "Registrar huésped ")
             + paxSeleccionado + " — " + nameOf(paxSeleccionado))
-        .width("28rem")
-        .content(huespedes().formularioPax())
+        .width("44rem")
+        .content(huespedes().formularioPax(editor))
         .initialData(initialData)
         .build();
+  }
+
+  static final tools.jackson.databind.json.JsonMapper KARDEX_JSON = tools.jackson.databind.json.JsonMapper.builder()
+      .disable(tools.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES).build();
+
+  /** The check-in's kárdex editor of the pax, for its form here (a prototype bean, asked of Mateu's provider). */
+  private DocumentoView documentoView() {
+    return io.mateu.uidl.di.MateuBeanProvider.getBean(DocumentoView.class);
+  }
+
+  /** The kárdex the drawer posted: its {@code k_} fields, as the check-in's editor. */
+  static DocumentoView.DocumentoEditor kardexDelDrawer(HttpRequest httpRequest) {
+    var estado = httpRequest.runActionRq().componentState();
+    var campos = new HashMap<String, Object>();
+    if (estado != null) {
+      estado.forEach((clave, valor) -> {
+        if (clave.startsWith(HuespedesPanel.PREFIJO_KARDEX) && valor != null && !"".equals(valor)) {
+          var campo = clave.substring(HuespedesPanel.PREFIJO_KARDEX.length());
+          // a date field may post a time too
+          campos.put(campo, valor instanceof String texto && texto.matches("\\d{4}-\\d{2}-\\d{2}T.*")
+              ? texto.substring(0, 10) : valor);
+        }
+      });
+    }
+    return KARDEX_JSON.convertValue(campos, DocumentoView.DocumentoEditor.class);
   }
 
   private Object confirmarCobro(HttpRequest httpRequest) {
@@ -960,14 +953,6 @@ public class ReservaOverview
     return value == null || value.isBlank();
   }
 
-  /** A date the page's date field posted («2026-10-09», maybe with a time); null if none or not one. */
-  static java.time.LocalDate fecha(String value) {
-    try {
-      return blank(value) ? null : java.time.LocalDate.parse(value.trim().length() > 10 ? value.trim().substring(0, 10) : value.trim());
-    } catch (RuntimeException e) {
-      return null;
-    }
-  }
 
   private static String orBlank(String value) {
     return value == null ? "" : value;

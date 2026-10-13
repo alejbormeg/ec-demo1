@@ -457,12 +457,39 @@ public class DocumentoView extends EditableView<Object, DocumentoView.DocumentoE
     if (stayId == null || stayId.isBlank()) {
       return;
     }
+    persist(edited);
+  }
+
+  /** The kárdex of a pax as the editor shows it — for another screen's form (the reservation's drawer). */
+  public DocumentoEditor kardexOf(String stayId, int pax) {
+    this.stayId = stayId;
+    this.paxIndex = pax;
+    return editor(null);
+  }
+
+  /**
+   * Saves a pax's kárdex edited in another screen's form (the reservation's drawer) as this editor saves
+   * it, and recognises the pax from it ({@link #reconocer}): what to tell the desk, or null.
+   */
+  public String saveKardex(String stayId, int pax, DocumentoEditor edited) {
+    this.stayId = stayId;
+    this.paxIndex = pax;
+    var riuClassAntes = kardexOf().map(PaxKardexes.PaxKardex::riuClass).orElse(null);
+    var emailAntes = pax().email();
+    persist(edited);
+    return reconocer(edited, riuClassAntes, emailAntes);
+  }
+
+  void persist(DocumentoEditor edited) {
     var name = String.join(" ", java.util.stream.Stream.of(edited.getNombre(), edited.getApellidos())
         .filter(v -> !blank(v)).map(String::trim).toList());
-    if (pax().complete()) {
-      kardex.contactUpdated(stayId, paxIndex(), edited.getEmail(), edited.getTelefono());
-    } else {
+    var pax = pax();
+    // a complete pax whose document or name the desk corrected is registered again (the change goes to
+    // the master); else only their contact changes
+    if (!pax.complete() || changed(pax.document(), edited.getDocumento()) || changed(pax.name(), name)) {
       kardex.registered(stayId, paxIndex(), edited.getDocumento(), name, edited.getEmail(), edited.getTelefono());
+    } else {
+      kardex.contactUpdated(stayId, paxIndex(), edited.getEmail(), edited.getTelefono());
     }
     kardex.registrationData(stayId, paxIndex(), registrationData(edited));
     kardex.kardexFilled(stayId, paxIndex(), new PaxKardexes.PaxKardex(stayId, paxIndex(), trim(edited.getNombre()),

@@ -1,5 +1,7 @@
 package io.mateu.ecdemo1.frontoffice.ui.reservas;
 
+import io.mateu.ecdemo1.frontoffice.ui.checkin.DocumentoView;
+
 import io.mateu.ecdemo1.frontoffice.domain.guest.Guest;
 import io.mateu.ecdemo1.frontoffice.domain.guest.KardexChange;
 import io.mateu.ecdemo1.frontoffice.domain.stay.IncidentStatus;
@@ -85,8 +87,8 @@ final class HuespedesPanel {
   /**
    * «Cliente»: quién es en la cadena el pax elegido (uno por pax con más de uno) — «Cliente conocido»
    * con el resumen de sus estancias y su Riu Class, o «Posible cliente conocido» con nombres y fechas
-   * de nacimiento — y la búsqueda de recepción preguntando al huésped: su número Riu Class o su email
-   * (da certeza) o su nombre y fecha de nacimiento (solo «posible»).
+   * de nacimiento. Lo que diga el huésped se escribe en su kárdex («Editar»): al guardarlo, su número Riu
+   * Class o su email dan certeza, y su nombre y fecha de nacimiento, solo «posible».
    */
   Component cliente(Stay stay) {
     var pax = Math.max(1, Math.min(r.paxCliente, stay.pax()));
@@ -108,18 +110,9 @@ final class HuespedesPanel {
     }
     contenido.add(io.mateu.ecdemo1.frontoffice.ui.common.CustomerPanels.panel(
         io.mateu.ecdemo1.frontoffice.ui.common.FrontOffice.recognition(stay.id(), pax)));
-    contenido.add(campo("clienteBusqueda", "Nº Riu Class o email", FieldDataType.string));
-    contenido.add(Button.builder().id("confirmar-cliente").label("Confirmar cliente").actionId("confirmarCliente").build());
-    contenido.add(campo("clienteNombre", "Nombre", FieldDataType.string));
-    contenido.add(campo("clienteApellidos", "Apellidos", FieldDataType.string));
-    contenido.add(campo("clienteNacimiento", "Fecha de nacimiento", FieldDataType.date));
-    contenido.add(Button.builder().id("buscar-cliente").label("Buscar por nombre").actionId("buscarClientePorNombre").build());
     return VerticalLayout.builder().style("width: 100%; gap: .5rem;").content(contenido).build();
   }
 
-  private static Component campo(String id, String label, FieldDataType type) {
-    return FormField.builder().id(id).label(label).dataType(type).style("width: 100%; max-width: 28rem;").build();
-  }
 
   /** Preferencias, última estancia, quejas pendientes e historial del huésped principal. */
   Component perfilCliente() {
@@ -225,10 +218,13 @@ final class HuespedesPanel {
   }
 
   /**
-   * El formulario del cardex del huésped seleccionado, a mano (documento/nombre/contacto) —
-   * contenido del DRAWER que abre "Editar"/"A mano"; el título viaja en el header del drawer.
+   * El formulario del kárdex del huésped seleccionado — el mismo que el del check-in, en el orden en que
+   * recepción lo pide — contenido del DRAWER que abre "Editar"/"A mano"; el título viaja en el header del
+   * drawer. Los campos se llaman {@code k_} + la propiedad del editor del check-in: guardarPax rehace el
+   * editor con ellos. Los que exigen las normas de registro van como obligatorios; país de expedición y
+   * adulto responsable, solo si alguna los pide.
    */
-  Component formularioPax() {
+  Component formularioPax(DocumentoView.DocumentoEditor editor) {
     var campos = new ArrayList<Component>();
     // el titular: encima de los campos, cada campo que recepción cambió y cómo lo tiene
     // Salesforce (pendiente, o rechazado con su motivo)
@@ -240,14 +236,48 @@ final class HuespedesPanel {
               .items(camposEnSalesforce(kardex, guest)).compact(true).frameless(true)
               .style("width: 100%;").build()));
     }
-    campos.add(campoPax("paxDocumento", "Documento"));
-    campos.add(campoPax("paxNombre", "Nombre"));
-    campos.add(campoPax("paxEmail", "Email"));
-    campos.add(campoPax("paxTelefono", "Teléfono"));
+    if (editor.getBaseLegal() != null && !editor.getBaseLegal().isBlank()) {
+      campos.add(io.mateu.uidl.data.Notice.builder().theme("info").text(editor.getBaseLegal()).fullWidth(true).build());
+    }
+    var formulario = new ArrayList<Component>();
+    for (var c : CAMPOS_KARDEX) {
+      if (editor.isHidden(c[0], null)) {
+        continue;
+      }
+      formulario.add(FormField.builder()
+          .id(PREFIJO_KARDEX + c[0])
+          .label(c[1])
+          .dataType(FieldDataType.valueOf(c[2]))
+          .required(editor.isRequired(c[0], null))
+          .readOnly("acompanante".equals(c[0]) || "cardexProvisional".equals(c[0]))
+          .style("width: 100%;")
+          .build());
+    }
+    campos.add(io.mateu.uidl.data.FormLayout.builder().maxColumns(2).content(formulario).style("width: 100%;").build());
     campos.add(Button.builder().label("Guardar kárdex").actionId("guardarPax")
         .buttonStyle(io.mateu.uidl.data.ButtonStyle.primary).build());
     return VerticalLayout.builder().content(campos).style("width: 100%; gap: .5rem;").build();
   }
+
+  /** Prefijo de los campos del kárdex en el estado del drawer. */
+  static final String PREFIJO_KARDEX = "k_";
+
+  /** Propiedad del editor del check-in, etiqueta y tipo de cada campo del kárdex, en el orden de recepción. */
+  static final String[][] CAMPOS_KARDEX = {
+      {"apellidos", "Apellidos", "string"}, {"nombre", "Nombre", "string"}, {"email", "Email", "string"},
+      {"riuClass", "Nº Riu Class", "string"}, {"fechaNacimiento", "Fecha de nacimiento", "date"},
+      {"sexo", "Sexo", "string"}, {"documento", "Documento", "string"},
+      {"tipoDocumento", "Tipo de documento", "string"}, {"caducidad", "Caducidad", "date"},
+      {"fechaExpedicion", "Expedición", "date"}, {"paisExpedicion", "País de expedición", "string"},
+      {"nacionalidad", "Nacionalidad", "string"}, {"idioma", "Idioma", "string"},
+      {"direccion", "Dirección", "string"}, {"ciudad", "Población", "string"},
+      {"codigoPostal", "Código postal", "string"}, {"provincia", "Provincia", "string"},
+      {"lugarNacimiento", "Ciudad de nacimiento", "string"}, {"paisResidencia", "País de residencia", "string"},
+      {"telefono", "Teléfono", "string"}, {"fax", "Fax", "string"},
+      {"tutor", "Adulto responsable y parentesco", "string"},
+      {"acompanante", "Es acompañante", "bool"}, {"cardexProvisional", "Es cárdex provisional", "bool"},
+      {"aceptaPublicidad", "Acepta publicidad", "bool"},
+  };
 
   /** Un item por campo cambiado: el dato, y su estado en Salesforce. */
   static List<StatusItem> camposEnSalesforce(KardexChange kardex, Guest guest) {
@@ -265,14 +295,6 @@ final class HuespedesPanel {
         .toList();
   }
 
-  private static Component campoPax(String id, String label) {
-    return FormField.builder()
-        .id(id)
-        .label(label)
-        .dataType(FieldDataType.string)
-        .style("width: 100%; max-width: 28rem;")
-        .build();
-  }
 
   static StatusItem paxItem(int pax, String title, String description, boolean complete, boolean noShow) {
     // también con la identidad verificada: el recepcionista puede querer volver a escanear

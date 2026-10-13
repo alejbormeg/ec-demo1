@@ -224,7 +224,7 @@ test.describe.serial(`demo, UI only (${RENDERER})`, () => {
 
     // ── 3 ──────────────────────────────────────────────────────────────────────────────────────────
     // Not verified live: the pax row's «Editar»/«A mano», the kárdex field «Teléfono», «Guardar kárdex»,
-    // the change requests listing's columns.
+    // the change requests listing's columns. Since 2026-10-13 the drawer is the check-in's whole kárdex.
     test('3 · the front office changes the holder\'s data → a Salesforce Case', async ({}, info) => {
         test.setTimeout(20 * 60_000)
         const ui = new Ui(page, info)
