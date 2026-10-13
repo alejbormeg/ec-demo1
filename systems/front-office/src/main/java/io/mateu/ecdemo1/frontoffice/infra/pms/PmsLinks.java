@@ -57,6 +57,48 @@ public class PmsLinks {
     jdbc.update("update stay set agreed_total = ? where id = ?", agreedTotal, stayId);
   }
 
+  /** The company billed for the stay: a partner of the ERP, by code, and its name. */
+  public record Company(String code, String name) {}
+
+  public Optional<Company> companyOf(String stayId) {
+    return jdbc.query("select company_code, company_name from stay where id = ?",
+        (rs, n) -> new Company(rs.getString(1), rs.getString(2)), stayId).stream()
+        .filter(c -> c.name() != null || c.code() != null).findFirst();
+  }
+
+  /** The company the desk set (null: none): kept until Opera's reservation shows it ({@link #companyFromPms}). */
+  public void companySetAtDesk(String stayId, String code, String name) {
+    jdbc.update("update stay set company_code = ?, company_name = ?, company_pending = true where id = ?",
+        code, name, stayId);
+  }
+
+  /**
+   * The company on the PMS's reservation, as a projection of it brings it. While the desk's choice has
+   * not reached the PMS, the reservation as it was does not undo it; once the PMS shows it, the PMS's is
+   * the stay's again.
+   */
+  public void companyFromPms(String stayId, String code, String name) {
+    var pending = Boolean.TRUE.equals(jdbc.query("select company_pending from stay where id = ?",
+        (rs, n) -> rs.getBoolean(1), stayId).stream().findFirst().orElse(false));
+    if (pending) {
+      var desk = companyOf(stayId).orElse(new Company(null, null));
+      if (!java.util.Objects.equals(blankToNull(desk.code()), blankToNull(code))) {
+        return;
+      }
+    }
+    jdbc.update("update stay set company_code = ?, company_name = ?, company_pending = false where id = ?",
+        code, name, stayId);
+  }
+
+  /** The company's name, corrected at the desk (its master has the new one). */
+  public void companyName(String stayId, String name) {
+    jdbc.update("update stay set company_name = ? where id = ?", name, stayId);
+  }
+
+  static String blankToNull(String s) {
+    return s == null || s.isBlank() ? null : s;
+  }
+
   public Optional<java.math.BigDecimal> agreedOf(String stayId) {
     return jdbc.query("select agreed_total from stay where id = ?", (rs, n) -> rs.getBigDecimal(1), stayId).stream()
         .filter(java.util.Objects::nonNull).findFirst();

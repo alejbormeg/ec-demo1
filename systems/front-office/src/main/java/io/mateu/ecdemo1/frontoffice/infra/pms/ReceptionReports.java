@@ -247,6 +247,23 @@ public class ReceptionReports {
         refs.crsLocator(), refs.pmsReservationId());
   }
 
+  /**
+   * The desk set the stay's company (null: took it away): in its transaction, the PMS is asked to put it
+   * on the reservation — its profile, and the stay routed to it. A stay the PMS does not have yet takes
+   * it from the front office when it does not: nothing to tell now (the desk's choice stays pending).
+   */
+  public void companyChanged(String stayId, String companyCode, String companyName, String by) {
+    var refs = refs(stayId);
+    if (refs.none()) {
+      log.info("{}: company {} — the reservation is not in the PMS yet", stayId, companyCode);
+      return;
+    }
+    outbox.appendEvent(new FrontOfficeEvent.CompanyChanged("CO-" + UUID.randomUUID(), clock.instant(), hotel, stayId,
+        refs.crsLocator(), pmsHotel, refs.pmsReservationId(), companyCode, companyName, by));
+    log.info("{}: company {} — to the PMS's reservation ({} / {})", stayId, companyCode == null ? "none" : companyCode,
+        refs.crsLocator(), refs.pmsReservationId());
+  }
+
   /** The till gave a captured payment back: in its transaction, the PMS is asked to refund it on its folio. */
   public void paymentRefunded(String stayId, io.mateu.ecdemo1.frontoffice.domain.cashier.Payment p, String by) {
     var line = "PAY:" + p.id();

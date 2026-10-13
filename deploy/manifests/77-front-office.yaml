@@ -68,6 +68,8 @@ spec:
             # Riu Class (the demo loyalty service): the tier and points of a recognised customer.
             - name: LOYALTY_URL
               value: "http://loyalty:8134"
+            - name: ERP_URL
+              value: "http://erp:8120"
             # A reservation's «Historial»: who did what on it, as the audit service keeps it (GET /audit).
             - name: AUDIT_URL
               value: "http://audit-service:8129"

@@ -35,7 +35,8 @@ public final class GuestHeaders {
         .title(FrontOffice.withFlag(stayId, 1, guest.id(), guest.name()))
         .badges(badges)
         .subtitle(staySubtitle(stay))
-        .facts(totalFacts(stay.total(), FrontOffice.agreedPrice(stayId).orElse(null), stay.agency()))
+        .facts(totalFacts(stay.total(), FrontOffice.agreedPrice(stayId).orElse(null), stay.agency(),
+            FrontOffice.company(stayId).orElse(null)))
         .metricLabel("FIDELIDAD")
         .metricValue(points(guest, known))
         .metricCaption(staysCaption(guest, known))
@@ -51,6 +52,11 @@ public final class GuestHeaders {
    * how much Opera's goes over.
    */
   static List<Fact> totalFacts(BigDecimal total, BigDecimal agreed, String agency) {
+    return totalFacts(total, agreed, agency, null);
+  }
+
+  /** The same, and the company billed when neither the agency nor the guest is — «—» without one. */
+  static List<Fact> totalFacts(BigDecimal total, BigDecimal agreed, String agency, String company) {
     var facts = new ArrayList<Fact>();
     if (agreed == null || total == null || agreed.compareTo(total) == 0) {
       facts.add(Fact.builder().label("TOTAL RESERVA").value(euros(total)).build());
@@ -62,7 +68,12 @@ public final class GuestHeaders {
           .build());
     }
     facts.add(Fact.builder().label("AGENCIA").value(agency).build());
+    facts.add(companyFact(company));
     return facts;
+  }
+
+  static Fact companyFact(String company) {
+    return Fact.builder().label("EMPRESA").value(company == null || company.isBlank() ? "—" : company).build();
   }
 
   /** The departing guest's banner at check-out. */
@@ -109,7 +120,8 @@ public final class GuestHeaders {
                 Fact.builder()
                     .label("PREAUTORIZADO")
                     .value(euros(folio == null ? null : folio.preauthorized()))
-                    .build()))
+                    .build(),
+                companyFact(FrontOffice.company(stayId).orElse(null))))
         .metricLabel("FIDELIDAD")
         .metricValue(points(guest, known))
         .metricCaption(staysCaption(guest, known))

@@ -355,13 +355,15 @@ public class ReservaOverview
               .build(),
           // the guest does it themselves on the lobby tablet (Civitfun, simulated)
           Button.builder().label("Check-in en tableta").actionId("enviarTableta").build(),
-          Button.builder().label("Caja").actionId("abrirCaja").build());
+          Button.builder().label("Caja").actionId("abrirCaja").build(),
+          empresaButton());
       case IN_HOUSE -> List.of(
           Button.builder().label("Check-out").actionId("irCheckout").buttonStyle(ButtonStyle.primary).build(),
           Button.builder().label("Añadir cargo").actionId("opCargos").build(),
           Button.builder().label("Cambiar habitación").actionId("opHabitacion").build(),
           Button.builder().label("Gestionar folio").actionId("gestionFolio").build(),
           Button.builder().label("Caja").actionId("abrirCaja").build(),
+          empresaButton(),
           Button.builder().label("Mensaje huésped").actionId("mensajeHuesped").build(),
           Button.builder().label("Registrar petición").actionId("opPeticion").build(),
           Button.builder().label("Nueva incidencia").actionId("opIncidencia").build());
@@ -384,7 +386,8 @@ public class ReservaOverview
             "anularCargo", "comprobarHabitacion", "completarCheckin",
             // Mateu 392 refuses an action a component does not declare here («not an action»)
             "noShowPax", "confirmarNoShowPax", "cancelarNoShowPax", "guardarExtras",
-            "clientePax", "abrirCaja", "enviarTableta")
+            "clientePax", "abrirCaja", "enviarTableta",
+            "opEmpresa", "cambiarEmpresa", "buscarEmpresas", "elegirEmpresa", "quitarEmpresa", "guardarEmpresa")
         .contains(actionId);
   }
 
@@ -483,6 +486,31 @@ public class ReservaOverview
       case "clientePax" -> {
         paxCliente = (int) Double.parseDouble(param(httpRequest, "paxIndex"));
         yield this;
+      }
+      case "opEmpresa" -> drawerEmpresa();
+      case "cambiarEmpresa" -> EmpresaPanel.busqueda(stayId, null, null, empresas().of(stayId).orElse(null));
+      case "buscarEmpresas" -> {
+        var texto = drawerText(httpRequest, "empresaBusqueda");
+        yield EmpresaPanel.busqueda(stayId, texto, empresas().search(texto), empresas().of(stayId).orElse(null));
+      }
+      case "elegirEmpresa" -> {
+        empresas().set(stayId, param(httpRequest, "_company"), DeskUser.name());
+        var empresa = empresas().of(stayId).map(io.mateu.ecdemo1.frontoffice.infra.pms.PmsLinks.Company::name).orElse("");
+        yield List.of(this, new Message("Se factura a " + empresa + " — enviado a Opera"), UICommand.closeModal());
+      }
+      case "quitarEmpresa" -> {
+        empresas().set(stayId, null, DeskUser.name());
+        yield List.of(this, new Message("Reserva sin empresa — enviado a Opera"), UICommand.closeModal());
+      }
+      case "guardarEmpresa" -> {
+        var empresa = EmpresaPanel.posted(httpRequest.runActionRq().componentState());
+        try {
+          empresas().correct(stayId, empresa, DeskUser.name());
+        } catch (RuntimeException e) {
+          yield new Message("⛔ " + e.getMessage());
+        }
+        yield List.of(this, new Message("Datos de " + empresa.name() + " guardados en el ERP; Opera los recibe del ERP"),
+            UICommand.closeModal());
       }
       case "opHabitacion" -> llegada().drawerHabitacion(stay());
       case "volverHabitacion" -> {
@@ -775,6 +803,23 @@ public class ReservaOverview
       });
     }
     return KARDEX_JSON.convertValue(campos, DocumentoView.DocumentoEditor.class);
+  }
+
+  /** The header's EMPRESA, chosen or corrected: its drawer. */
+  private static Button empresaButton() {
+    return Button.builder().id("empresa").label("✎ Empresa").actionId("opEmpresa").build();
+  }
+
+  /** The company's drawer: its data when the stay has one, else the search to choose it. */
+  private Object drawerEmpresa() {
+    var enLaReserva = empresas().of(stayId).filter(c -> c.code() != null).orElse(null);
+    return enLaReserva == null ? EmpresaPanel.busqueda(stayId, null, null, null)
+        : EmpresaPanel.datos(stayId, empresas().details(stayId).orElse(null), enLaReserva);
+  }
+
+  /** The stays' companies — asked of Mateu's bean provider: a page's non-final service fields are walked as state. */
+  private static io.mateu.ecdemo1.frontoffice.application.StayCompanies empresas() {
+    return io.mateu.uidl.di.MateuBeanProvider.getBean(io.mateu.ecdemo1.frontoffice.application.StayCompanies.class);
   }
 
   private Object confirmarCobro(HttpRequest httpRequest) {

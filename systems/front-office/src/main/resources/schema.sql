@@ -206,6 +206,13 @@ alter table stay add column if not exists pms_state varchar(500);
 -- with the packages it posts apart (XMAR's BRKFST): the desk sees both when they differ.
 alter table stay add column if not exists agreed_total numeric(12,2);
 
+-- The company billed when neither the agency nor the guest is — a partner of the ERP (its code), on
+-- Opera's reservation as its Company profile. company_pending: the desk set it and Opera has not shown
+-- it back yet, so a projection of the reservation as it was does not undo the desk's choice.
+alter table stay add column if not exists company_code varchar(40);
+alter table stay add column if not exists company_name varchar(200);
+alter table stay add column if not exists company_pending boolean default false;
+
 -- The invoice the PMS issued at the check-out (the PMS is the master of the folio): its number and
 -- figures, and its document when the PMS gave one. None: the desk's «Abrir factura» is the front
 -- office's proforma, labelled as such.

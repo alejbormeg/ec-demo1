@@ -14,7 +14,7 @@ class TotalFactsTest {
   void whenOperaAddsPackagesBothPricesShowTheCrsFirst() {
     var facts = GuestHeaders.totalFacts(new BigDecimal("346.00"), new BigDecimal("306.00"), "Directo · Walk In");
 
-    assertThat(facts).extracting(Fact::label).containsExactly("PRECIO CRS", "TOTAL OPERA", "AGENCIA");
+    assertThat(facts).extracting(Fact::label).containsExactly("PRECIO CRS", "TOTAL OPERA", "AGENCIA", "EMPRESA");
     assertThat(facts.get(0).value()).isEqualTo(GuestHeaders.euros(new BigDecimal("306.00")));
     assertThat(facts.get(1).value()).startsWith(GuestHeaders.euros(new BigDecimal("346.00")))
         .contains("+" + GuestHeaders.euros(new BigDecimal("40.00")) + " paquetes de Opera");
@@ -23,8 +23,15 @@ class TotalFactsTest {
   @Test
   void equalOrUnknownIsOneTotal() {
     assertThat(GuestHeaders.totalFacts(new BigDecimal("306"), new BigDecimal("306.00"), "x"))
-        .extracting(Fact::label).containsExactly("TOTAL RESERVA", "AGENCIA");
+        .extracting(Fact::label).containsExactly("TOTAL RESERVA", "AGENCIA", "EMPRESA");
     assertThat(GuestHeaders.totalFacts(new BigDecimal("306"), null, "x"))
-        .extracting(Fact::label).containsExactly("TOTAL RESERVA", "AGENCIA");
+        .extracting(Fact::label).containsExactly("TOTAL RESERVA", "AGENCIA", "EMPRESA");
+  }
+
+  @Test
+  void theCompanyBilledIsOnTheSameLineOrADash() {
+    assertThat(GuestHeaders.totalFacts(new BigDecimal("306"), null, "x", "Acme Corporation Ltd").getLast().value())
+        .isEqualTo("Acme Corporation Ltd");
+    assertThat(GuestHeaders.totalFacts(new BigDecimal("306"), null, "x").getLast().value()).isEqualTo("—");
   }
 }

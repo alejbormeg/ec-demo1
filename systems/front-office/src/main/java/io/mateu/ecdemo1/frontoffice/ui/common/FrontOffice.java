@@ -133,6 +133,12 @@ public class FrontOffice {
     return instance == null ? java.util.Optional.empty() : instance.pmsLinks.agreedOf(stayId);
   }
 
+  /** The company the stay is billed to, by name; empty without one. */
+  public static java.util.Optional<String> company(String stayId) {
+    return instance == null ? java.util.Optional.empty()
+        : instance.pmsLinks.companyOf(stayId).map(io.mateu.ecdemo1.frontoffice.infra.pms.PmsLinks.Company::name);
+  }
+
   /** The PMS reservation the stay is, if it is linked to one. */
   public static java.util.Optional<String> pmsReservation(String stayId) {
     return instance.pmsLinks.ofStay(stayId).map(io.mateu.ecdemo1.frontoffice.infra.pms.PmsLinks.Link::pmsReservationId)

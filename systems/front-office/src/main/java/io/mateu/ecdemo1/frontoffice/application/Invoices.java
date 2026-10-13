@@ -61,6 +61,17 @@ public class Invoices {
   final byte[] key;
   final Clock clock = Clock.systemUTC();
 
+  /**
+   * Who the stay is billed to besides the guest, when it has a company; none in a test that does not wire
+   * it. A final holder, set once: pages hold this service, and Mateu walks a page's non-final fields.
+   */
+  private final java.util.concurrent.atomic.AtomicReference<StayCompanies> companies = new java.util.concurrent.atomic.AtomicReference<>();
+
+  @org.springframework.beans.factory.annotation.Autowired(required = false)
+  public void setCompanies(StayCompanies companies) {
+    this.companies.set(companies);
+  }
+
   public Invoices(StayQueries queries, StayInvoices invoices, @Value("${frontoffice.hotel:MRU01}") String hotel,
       @Value("${frontoffice.link-secret:}") String secret) {
     this.queries = queries;
@@ -129,6 +140,20 @@ public class Invoices {
     return Optional.of(new Document(proforma(stayId, invoice.orElse(null)), false, "proforma-" + stayId + ".pdf"));
   }
 
+  /** The company the stay is billed to, as an invoice names it — its data as the ERP has them, or its name. */
+  java.util.Optional<String> billTo(String stayId) {
+    var stayCompanies = companies.get();
+    if (stayCompanies == null) {
+      return java.util.Optional.empty();
+    }
+    var company = stayCompanies.of(stayId).orElse(null);
+    if (company == null || company.name() == null) {
+      return java.util.Optional.empty();
+    }
+    return java.util.Optional.of(stayCompanies.details(stayId).map(io.mateu.ecdemo1.frontoffice.domain.company.Companies.Company::billTo)
+        .orElse(company.name()));
+  }
+
   /** The front office's folio as a PDF, labelled as the proforma it is. */
   byte[] proforma(String stayId, StayInvoice pms) {
     var view = queries.view(stayId);
@@ -146,6 +171,7 @@ public class Invoices {
     var text = new ArrayList<String>();
     text.add("Hotel " + hotel + " · estancia " + stayId);
     text.add("Huésped: " + (view.guest() == null ? "" : view.guest().name()));
+    billTo(stayId).ifPresent(company -> text.add("Facturar a: " + company));
     text.add("Estancia: " + DAY.format(stay.checkIn()) + " – " + DAY.format(stay.checkOut())
         + (stay.roomNumber() == null ? "" : " · habitación " + stay.roomNumber()));
     if (pms != null && pms.number() != null) {
