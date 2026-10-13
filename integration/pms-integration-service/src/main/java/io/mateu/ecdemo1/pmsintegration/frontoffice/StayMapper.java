@@ -60,7 +60,52 @@ public final class StayMapper {
                 holder, companions(r), text(rate.path("roomType")), text(rate.path("ratePlanCode")), board(r),
                 OperaStays.date(stay.path("arrivalDate")), OperaStays.date(stay.path("departureDate")), pax,
                 agency(r, rate), total(r, stay, rate, context), currency(rate),
-                crsLocator == null ? null : total(stay, rate));
+                crsLocator == null ? null : total(stay, rate), null, company(r).map(Company::name).orElse(null));
+    }
+
+    /**
+     * The company profile on a reservation: Opera's id of it, its name, and its CorporateId — the
+     * partner's code, for a profile the integration projected from the ERP (or the chain's own).
+     */
+    public record Company(String pmsProfileId, String name, String corporateId) {
+    }
+
+    /**
+     * The company on the reservation — who is billed when neither the agency nor the guest is —: its
+     * profile of type Company, if it has one.
+     */
+    public static java.util.Optional<Company> company(JsonNode r) {
+        for (var p : r.path("reservationProfiles").path("reservationProfile")) {
+            if (!"Company".equals(p.path("reservationProfileType").asText(""))) {
+                continue;
+            }
+            String id = null;
+            String corporateId = null;
+            for (var ref : p.path("profileIdList")) {
+                var value = ref.path("id").asText("");
+                if (value.isBlank()) {
+                    continue;
+                }
+                switch (ref.path("type").asText("")) {
+                    case "Profile" -> id = value;
+                    case "CorporateId" -> corporateId = value;
+                    default -> { }
+                }
+            }
+            var name = p.path("profile").path("company").path("companyName").asText(null);
+            if (id != null || (name != null && !name.isBlank())) {
+                return java.util.Optional.of(new Company(id, name == null || name.isBlank() ? null : name, corporateId));
+            }
+        }
+        return java.util.Optional.empty();
+    }
+
+    /** The command with the company's code in the ERP (the partner its profile is), when it is one. */
+    public static WriteStay withCompanyCode(WriteStay w, String companyCode) {
+        return new WriteStay(w.commandId(), w.pmsHotelCode(), w.pmsReservationId(), w.confirmationNumber(), w.crsLocator(),
+                w.externalReferences(), w.pmsVersion(), w.status(), w.holder(), w.companions(), w.roomTypeCode(),
+                w.ratePlanCode(), w.boardCode(), w.checkIn(), w.checkOut(), w.pax(), w.agency(), w.total(), w.currency(),
+                w.agreedTotal(), companyCode, w.companyName());
     }
 
     static PmsStatus status(JsonNode r, Context context) {
@@ -139,7 +184,7 @@ public final class StayMapper {
         return new WriteStay(w.commandId(), w.pmsHotelCode(), w.pmsReservationId(), w.confirmationNumber(), w.crsLocator(),
                 w.externalReferences(), w.pmsVersion(), w.status(), w.holder(), List.copyOf(companions), w.roomTypeCode(),
                 w.ratePlanCode(), w.boardCode(), w.checkIn(), w.checkOut(), w.pax(), w.agency(), w.total(), w.currency(),
-                w.agreedTotal());
+                w.agreedTotal(), w.companyCode(), w.companyName());
     }
 
     static String fullName(io.mateu.ecdemo1.integration.model.reservation.Person p) {
@@ -216,12 +261,15 @@ public final class StayMapper {
         return null;
     }
 
-    /** The travel agent or company that sold it; otherwise the hotel itself, by Opera's source. */
+    /**
+     * The travel agent that sold it; otherwise the hotel itself, by Opera's source. A company on the
+     * reservation is not who sold it but who is billed: {@link #company}.
+     */
     static String agency(JsonNode r, JsonNode rate) {
         for (var p : r.path("reservationProfiles").path("reservationProfile")) {
             var type = p.path("reservationProfileType").asText("");
             var name = p.path("profile").path("company").path("companyName").asText(null);
-            if (name != null && !name.isBlank() && ("TravelAgent".equals(type) || "Company".equals(type) || "Source".equals(type))) {
+            if (name != null && !name.isBlank() && ("TravelAgent".equals(type) || "Source".equals(type))) {
                 return name;
             }
         }

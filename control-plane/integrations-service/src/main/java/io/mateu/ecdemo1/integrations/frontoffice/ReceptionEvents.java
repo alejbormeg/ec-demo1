@@ -79,6 +79,7 @@ public class ReceptionEvents {
             case FrontOfficeEvent.ChargeVoided ignored -> Definitions.REVERSE_CHARGE;
             case FrontOfficeEvent.PaymentTaken ignored -> Definitions.REGISTER_PAYMENT;
             case FrontOfficeEvent.PaymentRefunded ignored -> Definitions.REFUND_PAYMENT;
+            case FrontOfficeEvent.CompanyChanged ignored -> Definitions.ASSIGN_COMPANY;
             case FrontOfficeEvent.StayClosed ignored -> throw new IllegalStateException("taken above: not the PMS's");
         };
         // One check-in per room: the desk that picks another room after Opera refused one starts it again
@@ -90,6 +91,8 @@ public class ReceptionEvents {
             case FrontOfficeEvent.ChargeVoided voided -> ":" + voided.lineId();
             case FrontOfficeEvent.PaymentTaken p -> ":" + p.paymentId();
             case FrontOfficeEvent.PaymentRefunded p -> ":" + p.paymentId();
+            // each change of the stay's company its own process; the reservation's lock keeps them in order
+            case FrontOfficeEvent.CompanyChanged c -> ":" + c.eventId();
             default -> "";
         };
         var variables = new ArrayList<Variable>(List.of(
@@ -117,6 +120,14 @@ public class ReceptionEvents {
                     p.currency(), p.reference());
             case FrontOfficeEvent.PaymentRefunded p -> payment(variables, p.paymentId(), p.kind(), p.method(), p.amount(),
                     p.currency(), p.reference());
+            case FrontOfficeEvent.CompanyChanged c -> {
+                if (!blank(c.companyCode())) {
+                    variables.add(new Variable(ProcessVariables.COMPANY_CODE, c.companyCode()));
+                }
+                if (!blank(c.companyName())) {
+                    variables.add(new Variable(ProcessVariables.COMPANY_NAME, c.companyName()));
+                }
+            }
             default -> {
             }
         }
@@ -132,6 +143,7 @@ public class ReceptionEvents {
             case FrontOfficeEvent.ChargeVoided ignored -> "charge-void";
             case FrontOfficeEvent.PaymentTaken ignored -> "payment";
             case FrontOfficeEvent.PaymentRefunded ignored -> "payment-refund";
+            case FrontOfficeEvent.CompanyChanged ignored -> "company";
             case FrontOfficeEvent.StayClosed ignored -> "stay-closed";
         });
         span.setAttribute("eventconductor.business-key", key);

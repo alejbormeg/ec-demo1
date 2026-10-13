@@ -87,6 +87,25 @@ transacción», «devuelto» o «rechazado — por qué».
 Configurable en `ohip.payments` de `pms-integration-service`. Las formas de pago de XMAR salen de
 `GET /lov/v1/listOfValues/hotels/XMAR/paymentMethods`.
 
+## La empresa: a quién se factura
+
+La empresa es a quien se factura la estancia cuando no se factura ni a la agencia ni al huésped. Es un
+partner de tipo `Company` del ERP, el maestro de partners, que la integración proyecta a Opera como perfil
+*Company* («proyectar-interlocutor»).
+
+- **Dónde se ve.** En la cabecera de la reserva, como **EMPRESA**, en la misma línea que PRECIO CRS, TOTAL
+  OPERA, AGENCIA y FIDELIDAD («—» sin empresa). Llega con la reserva de Opera: su perfil *Company*, cuyo
+  `CorporateId` es el código del partner. La agencia es el *TravelAgent* (o el *Source*), ya no la empresa.
+- **Elegirla, cambiarla o quitarla.** Con **✎ Empresa** en la barra de la reserva: se busca entre las
+  empresas del ERP (`GET /partners?type=Company`) y se elige una. El front office sale con
+  `company-changed` en `front-office-events` y arranca **`asignar-empresa`**: el perfil se adjunta a la
+  reserva de Opera y el alojamiento y la pensión se le enrutan en la ventana 2 del folio. Hasta que Opera
+  la muestra, una proyección de la reserva tal como estaba no deshace lo que eligió recepción.
+- **Corregir sus datos.** Nombre, CIF, dirección, email y teléfono se editan en el mismo drawer y se
+  guardan en el ERP (`PUT /partners/{code}`). El ERP los anuncia y `ensure-partner-profile` actualiza el
+  perfil de Opera cuando la versión del partner es más nueva que la proyectada.
+- **En la factura.** La proforma del front office dice «Facturar a: empresa · CIF · dirección».
+
 ## Check-in en la tableta (Civitfun, simulado)
 
 Botón **Check-in en tableta** en una reserva que llega. Como el escáner de documentos, **no hay tableta**:

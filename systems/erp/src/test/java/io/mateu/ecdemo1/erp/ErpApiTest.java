@@ -93,6 +93,15 @@ class ErpApiTest {
     }
 
     @Test
+    void theCompaniesAreThePartnersOfThatType() throws Exception {
+        var companies = json(mvc.perform(get("/partners").param("type", "Company")).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString());
+        assertThat(companies.size()).isPositive();
+        companies.forEach(p -> assertThat(p.get("type").asText()).isEqualTo("Company"));
+        assertThat(companies.findValuesAsText("code")).contains("ACME").doesNotContain("BOOKIT");
+    }
+
+    @Test
     void whichProfileAPartnerIsInThePmsIsRecordedWithoutChangingOrAnnouncingIt() throws Exception {
         mvc.perform(post("/partners").contentType(MediaType.APPLICATION_JSON).content("""
                         {"code":"05100908","details":{"type":"TravelAgent","name":"ABREU ONLINE PORTUGAL","billingMode":"Front"}}"""))

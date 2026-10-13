@@ -308,6 +308,12 @@
         },
         "agreedTotal" : {
           "type" : [ "number", "null" ]
+        },
+        "companyCode" : {
+          "type" : [ "string", "null" ]
+        },
+        "companyName" : {
+          "type" : [ "string", "null" ]
         }
       },
       "required" : [ "type", "commandId", "pmsHotelCode", "pmsReservationId", "confirmationNumber", "crsLocator", "externalReferences", "pmsVersion", "status", "holder", "companions", "roomTypeCode", "ratePlanCode", "boardCode", "checkIn", "checkOut", "pax", "agency", "total", "currency", "agreedTotal" ],

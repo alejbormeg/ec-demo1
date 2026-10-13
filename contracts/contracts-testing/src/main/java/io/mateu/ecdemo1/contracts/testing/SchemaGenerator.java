@@ -19,7 +19,8 @@ import java.util.Map;
 
 /**
  * A topic's JSON Schema (draft 2020-12), generated from the records that are its messages: every
- * record component is required and, unless primitive, nullable (the services write nulls); java.time
+ * record component is required — but one annotated {@code @JsonInclude(NON_NULL)}, written only with a value
+ * — and, unless primitive, nullable (the services write nulls); java.time
  * values are ISO strings; enums are their names; a polymorphic message is a {@code oneOf} of its
  * variants, each with its discriminator as a constant. Every object is a definition in
  * {@code $defs}, named after its class without the package.
@@ -29,6 +30,11 @@ public final class SchemaGenerator {
     static final String DRAFT = "https://json-schema.org/draft/2020-12/schema";
 
     private SchemaGenerator() {
+    }
+
+    static boolean omittedWhenNull(com.github.victools.jsonschema.generator.FieldScope field) {
+        var include = field.getAnnotationConsideringFieldAndGetter(com.fasterxml.jackson.annotation.JsonInclude.class);
+        return include != null && include.value() == com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
     }
 
     public static ObjectNode generate(TopicSpec spec) {
@@ -44,7 +50,9 @@ public final class SchemaGenerator {
             config.with(Option.FORBIDDEN_ADDITIONAL_PROPERTIES_BY_DEFAULT);
         }
         config.forFields()
-                .withRequiredCheck(field -> !field.isFakeContainerItemScope())
+                // a component written only when it has a value (@JsonInclude(NON_NULL)) is optional: how a
+                // property is added to a message without breaking what older producers wrote
+                .withRequiredCheck(field -> !field.isFakeContainerItemScope() && !omittedWhenNull(field))
                 .withNullableCheck(field -> !field.getType().isPrimitive());
         config.forMethods().withRequiredCheck(method -> true);
         config.forTypesInGeneral()

@@ -2,7 +2,7 @@
   "$schema" : "https://json-schema.org/draft/2020-12/schema",
   "$id" : "urn:ec-demo1:topic:front-office-events:v1",
   "title" : "front-office-events v1",
-  "description" : "What happened at a hotel's reception — a guest checked in, checked out, nobody came, a charge put on the stay's folio or taken back. The PMS is the master of the stay and its folio: the pms-fo integration records each in it through the engine, and a no-show goes on to the CRS for its fee.",
+  "description" : "What happened at a hotel's reception — a guest checked in, checked out, nobody came, a charge put on the stay's folio or taken back, the company billed changed. The PMS is the master of the stay and its folio: the pms-fo integration records each in it through the engine, and a no-show goes on to the CRS for its fee.",
   "x-topic" : "front-office-events",
   "x-version" : 1,
   "x-owner" : "front-office",
@@ -27,6 +27,8 @@
     "$ref" : "#/$defs/FrontOfficeEvent.PaymentTaken"
   }, {
     "$ref" : "#/$defs/FrontOfficeEvent.PaymentRefunded"
+  }, {
+    "$ref" : "#/$defs/FrontOfficeEvent.CompanyChanged"
   } ],
   "$defs" : {
     "FrontOfficeEvent.ChargeKind" : {
@@ -157,6 +159,47 @@
         }
       },
       "required" : [ "type", "eventId", "at", "hotelCode", "stayId", "crsLocator", "pmsHotelCode", "pmsReservationId", "lineId", "kind", "code", "description", "amount", "currency", "by" ],
+      "additionalProperties" : false
+    },
+    "FrontOfficeEvent.CompanyChanged" : {
+      "type" : "object",
+      "properties" : {
+        "type" : {
+          "const" : "company-changed"
+        },
+        "eventId" : {
+          "type" : [ "string", "null" ]
+        },
+        "at" : {
+          "type" : [ "string", "null" ],
+          "format" : "date-time"
+        },
+        "hotelCode" : {
+          "type" : [ "string", "null" ]
+        },
+        "stayId" : {
+          "type" : [ "string", "null" ]
+        },
+        "crsLocator" : {
+          "type" : [ "string", "null" ]
+        },
+        "pmsHotelCode" : {
+          "type" : [ "string", "null" ]
+        },
+        "pmsReservationId" : {
+          "type" : [ "string", "null" ]
+        },
+        "companyCode" : {
+          "type" : [ "string", "null" ]
+        },
+        "companyName" : {
+          "type" : [ "string", "null" ]
+        },
+        "by" : {
+          "type" : [ "string", "null" ]
+        }
+      },
+      "required" : [ "type", "eventId", "at", "hotelCode", "stayId", "crsLocator", "pmsHotelCode", "pmsReservationId", "companyCode", "companyName", "by" ],
       "additionalProperties" : false
     },
     "FrontOfficeEvent.GuestCheckedIn" : {
@@ -566,6 +609,18 @@
     "amount" : 100.0,
     "currency" : "MUR",
     "reference" : null,
+    "by" : "ana"
+  }, {
+    "type" : "company-changed",
+    "eventId" : "E-12",
+    "at" : "2026-11-12T09:30:00Z",
+    "hotelCode" : "MRU01",
+    "stayId" : "12E45",
+    "crsLocator" : "12E45",
+    "pmsHotelCode" : "XMAR",
+    "pmsReservationId" : "123456",
+    "companyCode" : "ACME-SL",
+    "companyName" : "Acme Consulting SL",
     "by" : "ana"
   }, {
     "type" : "stay-closed",

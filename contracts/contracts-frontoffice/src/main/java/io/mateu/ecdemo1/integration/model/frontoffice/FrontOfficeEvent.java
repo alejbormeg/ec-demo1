@@ -32,6 +32,7 @@ import java.util.List;
         @JsonSubTypes.Type(value = FrontOfficeEvent.StayClosed.class, name = "stay-closed"),
         @JsonSubTypes.Type(value = FrontOfficeEvent.PaymentTaken.class, name = "payment-taken"),
         @JsonSubTypes.Type(value = FrontOfficeEvent.PaymentRefunded.class, name = "payment-refunded"),
+        @JsonSubTypes.Type(value = FrontOfficeEvent.CompanyChanged.class, name = "company-changed"),
 })
 public sealed interface FrontOfficeEvent {
 
@@ -155,6 +156,19 @@ public sealed interface FrontOfficeEvent {
     record PaymentRefunded(String eventId, Instant at, String hotelCode, String stayId, String crsLocator,
                            String pmsHotelCode, String pmsReservationId, String paymentId, String kind, String method,
                            BigDecimal amount, String currency, String reference, String by) implements FrontOfficeEvent {
+    }
+
+    /**
+     * The desk set the company of the stay — who is billed when neither the agency nor the guest is —, or
+     * took it away: the PMS attaches the company's profile to the reservation and routes the stay's
+     * accommodation and packages to it, or detaches it («asignar-empresa»).
+     *
+     * @param companyCode the company, a partner of the ERP (its code); null when the desk took it away
+     * @param companyName its name, as the ERP has it; null when taken away
+     */
+    record CompanyChanged(String eventId, Instant at, String hotelCode, String stayId, String crsLocator,
+                          String pmsHotelCode, String pmsReservationId, String companyCode, String companyName,
+                          String by) implements FrontOfficeEvent {
     }
 
     /**

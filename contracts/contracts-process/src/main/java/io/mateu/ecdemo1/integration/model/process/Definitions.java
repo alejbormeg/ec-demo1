@@ -46,6 +46,13 @@ public final class Definitions {
     public static final String REGISTER_PAYMENT = "registrar-cobro";
     public static final String REFUND_PAYMENT = "devolver-cobro";
 
+    /**
+     * The company of a stay — who is billed when neither the agency nor the guest is —, onto the PMS
+     * (pms-fo): its profile attached to the reservation and the accommodation routed to it, or detached.
+     * One process per stay: the last change the desk made wins.
+     */
+    public static final String ASSIGN_COMPANY = "asignar-empresa";
+
     /** The message a waiting process is resumed with once its last cause is resolved. */
     public static final String CAUSES_RESOLVED_MESSAGE = "causes-resolved";
 

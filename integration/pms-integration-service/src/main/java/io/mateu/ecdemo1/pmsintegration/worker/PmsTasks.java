@@ -128,6 +128,16 @@ public class PmsTasks {
                         ReceptionHandlers.ReceptionTask::pmsHotelCode, ReceptionHandlers.ReceptionTask::stayId));
     }
 
+    // ── the company billed, onto Opera's reservation (pms-fo) ──────────────────────────────────────
+
+    @Bean
+    public TaskRegistration<CompanyHandlers.CompanyTask, CompanyHandlers.CompanyAssigned> assignCompanyTask(
+            CompanyHandlers handlers, RetryWatch watch) {
+        return new TaskRegistration<>(CompanyHandlers.ASSIGN_COMPANY, 1, TOPIC, CompanyHandlers.CompanyTask.class,
+                CompanyHandlers.CompanyAssigned.class, watched(watch, handlers::assignCompany,
+                        CompanyHandlers.CompanyTask::pmsHotelCode, CompanyHandlers.CompanyTask::stayId));
+    }
+
     // ── the desk's charges, onto Opera's folio (pms-fo) ────────────────────────────────────────────
 
     @Bean

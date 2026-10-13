@@ -38,7 +38,9 @@ class PmsTasksTest {
     final IntegrationClients integration = mock(IntegrationClients.class);
     final StayProjection stays = mock(StayProjection.class);
     final RetryWatch watch = mock(RetryWatch.class);
-    final TaskHandlers handlers = new TaskHandlers(integration, null, null, null, null, null,
+    final io.mateu.ecdemo1.pmsintegration.ohip.OperaProfiles profiles = mock(io.mateu.ecdemo1.pmsintegration.ohip.OperaProfiles.class);
+    final io.mateu.ecdemo1.pmsintegration.connections.Connections connections = mock(io.mateu.ecdemo1.pmsintegration.connections.Connections.class);
+    final TaskHandlers handlers = new TaskHandlers(integration, profiles, null, null, connections, null,
             new OhipProperties("ECDEMO1", "UDFN01", "CASH", Duration.ofSeconds(2), "", false, false, null, null), stays, null);
     final PmsTasks tasks = new PmsTasks();
     final RecordingSink sink = new RecordingSink();
@@ -75,6 +77,26 @@ class PmsTasksTest {
                 pmsProfileId, pmsProfileId == null ? null : "Agent");
     }
 
+    void operaIsAt(String hotel) {
+        when(connections.integrations()).thenReturn(List.of(new io.mateu.ecdemo1.integration.model.integration.IntegrationView(
+                "I-1", hotel, hotel, io.mateu.ecdemo1.integration.model.integration.IntegrationStatus.ACTIVE)));
+    }
+
+    @Test
+    void aChangedPartnerTheErpKnowsInOperaHasItsProfileBroughtUpToDate() {
+        var partner = partner("16120699");
+        when(integration.partner("NORDTRAVEL")).thenReturn(partner);
+        operaIsAt("XMAR");
+        when(profiles.updatePartner("XMAR", "16120699", partner, "Agent")).thenReturn(true);
+
+        dispatcher.dispatch(task("proyectar-interlocutor", "ensure-partner-profile", "ensure-partner-profile@1",
+                new Variable("partnerCode", "NORDTRAVEL"), new Variable("processKey", "k"),
+                new Variable("definitionId", "proyectar-interlocutor"), new Variable("prepareOutcome", "OK")));
+
+        assertThat(sink.replies).containsExactly(
+                "COMPLETED [profileOutcome=OK, pmsProfileIds=16120699, pmsProfileType=Agent]");
+    }
+
     @Test
     void everyContractHasItsHandlerOnThePmsTopic() {
         var registry = new TaskRegistry(List.of(tasks.ensureGuestProfileTask(handlers, watch),
@@ -89,6 +111,7 @@ class PmsTasksTest {
     @Test
     void aPartnerTheErpAlreadyKnowsInOperaAnswersItsProfile() {
         when(integration.partner("NORDTRAVEL")).thenReturn(partner("16120699"));
+        operaIsAt("XMAR");
 
         dispatcher.dispatch(task("proyectar-interlocutor", "ensure-partner-profile", "ensure-partner-profile@1",
                 new Variable("partnerCode", "NORDTRAVEL"), new Variable("processKey", "k"),

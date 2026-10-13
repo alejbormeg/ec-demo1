@@ -257,6 +257,23 @@ class MappingTest {
     org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     @Test
+    void thePartnerAPmsProfileIsIsFoundByTheProfile() throws Exception {
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/partner-profiles/ACME")
+                        .contentType("application/json").content("""
+                                {"pmsProfileId":"77001","profileType":"Company"}"""))
+                .andExpect(status().isOk());
+
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/partner-profiles")
+                        .param("pmsProfileId", "77001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.partnerCode").value("ACME"))
+                .andExpect(jsonPath("$.profileType").value("Company"));
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/partner-profiles")
+                        .param("pmsProfileId", "nobody"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     void resolvingACauseAndDecidingTheLastProposalCloseWhatTheyAnnounced() throws Exception {
         jdbc.update("delete from outbox_message where binding = 'resolutions'");
         var entry = dictionary.propose(new Dictionary.Proposal(CodeType.ROOM_TYPE, "RES01", "RESX", "XRES", Map.of(), null, null), "agent");

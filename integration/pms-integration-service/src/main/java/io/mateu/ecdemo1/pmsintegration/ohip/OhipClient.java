@@ -116,6 +116,10 @@ public class OhipClient {
         return call(HttpMethod.PUT, hotelId, uri, body, variables);
     }
 
+    public Response delete(String hotelId, String uri, Object... variables) {
+        return call(HttpMethod.DELETE, hotelId, uri, null, variables);
+    }
+
     /**
      * A document Opera links to — a stored folio's report, say: the bytes, read with the same headers
      * as any call. {@code url} is a path of the gateway or a full URL (Opera answers with either).

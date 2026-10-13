@@ -72,6 +72,14 @@ public class StayProjection {
         var command = StayMapper.toWriteStay(hotel, reservation, new StayMapper.Context(context.externalSystemCode(),
                 new HashSet<>(properties.noShowCancellationCodes()), customerId, master));
         command = StayMapper.withCrsGuests(command, crsReservation(hotel, command));
+        // the company is a partner of the ERP's: its CorporateId in Opera, or the profile the mapping
+        // recorded when it projected the partner
+        var company = StayMapper.company(reservation).orElse(null);
+        if (company != null) {
+            var code = company.corporateId() != null ? company.corporateId()
+                    : company.pmsProfileId() == null ? null : integration.partnerOfProfile(company.pmsProfileId()).orElse(null);
+            command = StayMapper.withCompanyCode(command, code);
+        }
         send(command);
         log.info("{}/{} ({}) to the front office: {} {}..{} {} {} v{}", hotel, reservationId,
                 command.crsLocator() == null ? "born in Opera" : "CRS " + command.crsLocator(), command.status(),

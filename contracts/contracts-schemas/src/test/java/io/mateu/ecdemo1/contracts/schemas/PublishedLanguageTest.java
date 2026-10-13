@@ -191,7 +191,7 @@ class PublishedLanguageTest {
                                         false, false, "Posted to Opera's folio", "88731245")),
                 TopicSpec.topic("front-office-events")
                         .describedAs("What happened at a hotel's reception — a guest checked in, checked out, nobody "
-                                + "came, a charge put on the stay's folio or taken back. The PMS is the master of the stay "
+                                + "came, a charge put on the stay's folio or taken back, the company billed changed. The PMS is the master of the stay "
                                 + "and its folio: the pms-fo integration records each in it through the engine, and a "
                                 + "no-show goes on to the CRS for its fee.")
                         .ownedBy("front-office").keyedBy("hotelCode/stayId")
@@ -213,6 +213,8 @@ class PublishedLanguageTest {
                                         "P-5C2E", "DEPOSIT", "CASH", new BigDecimal("100.00"), "MUR", null, "ana"),
                                 new FrontOfficeEvent.PaymentRefunded("E-11", AT, "MRU01", "12E45", "12E45", "XMAR",
                                         "123456", "P-5C2E", "DEPOSIT", "CASH", new BigDecimal("100.00"), "MUR", null, "ana"),
+                                new FrontOfficeEvent.CompanyChanged("E-12", AT, "MRU01", "12E45", "12E45", "XMAR",
+                                        "123456", "ACME-SL", "Acme Consulting SL", "ana"),
                                 new FrontOfficeEvent.StayClosed("E-9", AT, "MRU01", "12E45", "12E45", "XMAR", "123456",
                                         LocalDate.of(2026, 11, 8), LocalDate.of(2026, 11, 12), 4, "205", "JS-SEA",
                                         "TODO-INCLUIDO",

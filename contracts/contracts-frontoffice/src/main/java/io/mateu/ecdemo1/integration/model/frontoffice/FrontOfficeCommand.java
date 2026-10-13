@@ -1,6 +1,7 @@
 package io.mateu.ecdemo1.integration.model.frontoffice;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
@@ -79,12 +80,29 @@ public sealed interface FrontOfficeCommand {
      *                           and the packages the PMS posts apart from it — what the PMS will bill
      * @param agreedTotal        the price the CRS agreed: the rate the PMS keeps fixed, without the packages
      *                           it posts apart (Opera's BRKFST); null for one born in the PMS, or unknown
+     * @param companyCode        the company on the reservation — who is billed when neither the agency nor
+     *                           the guest is —, as the ERP knows it (a partner's code); null with no company,
+     *                           or one the ERP does not know
+     * @param companyName        that company's name as the PMS has it; null with no company
      */
     record WriteStay(String commandId, String pmsHotelCode, String pmsReservationId, String confirmationNumber,
                      String crsLocator, List<String> externalReferences, String pmsVersion, PmsStatus status,
                      Person holder, List<Person> companions, String roomTypeCode, String ratePlanCode,
                      String boardCode, LocalDate checkIn, LocalDate checkOut, int pax, String agency,
-                     BigDecimal total, String currency, BigDecimal agreedTotal) implements FrontOfficeCommand {
+                     BigDecimal total, String currency, BigDecimal agreedTotal,
+                     @JsonInclude(JsonInclude.Include.NON_NULL) String companyCode,
+                     @JsonInclude(JsonInclude.Include.NON_NULL) String companyName) implements FrontOfficeCommand {
+
+        /** Without the company: a command written before it was carried. */
+        public WriteStay(String commandId, String pmsHotelCode, String pmsReservationId, String confirmationNumber,
+                         String crsLocator, List<String> externalReferences, String pmsVersion, PmsStatus status,
+                         Person holder, List<Person> companions, String roomTypeCode, String ratePlanCode,
+                         String boardCode, LocalDate checkIn, LocalDate checkOut, int pax, String agency,
+                         BigDecimal total, String currency, BigDecimal agreedTotal) {
+            this(commandId, pmsHotelCode, pmsReservationId, confirmationNumber, crsLocator, externalReferences,
+                    pmsVersion, status, holder, companions, roomTypeCode, ratePlanCode, boardCode, checkIn, checkOut,
+                    pax, agency, total, currency, agreedTotal, null, null);
+        }
 
         /** Without the CRS's agreed price: a command written before it was carried, or one born in the PMS. */
         public WriteStay(String commandId, String pmsHotelCode, String pmsReservationId, String confirmationNumber,

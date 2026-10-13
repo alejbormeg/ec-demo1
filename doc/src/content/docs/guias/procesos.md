@@ -113,6 +113,21 @@ candado `reservation`, como los cargos.
 La respuesta vuelve al front office como un `record-charge` de la línea `PAY:<cobro>`: la caja lo enseña
 debajo de cada cobro.
 
+## La empresa de la estancia, a la reserva del PMS: `asignar-empresa`
+
+Cuando recepción elige, cambia o quita la empresa de una estancia (a quién se factura si no es ni la
+agencia ni el huésped), el front office lo cuenta como `company-changed` en `front-office-events`, con el
+código del partner del ERP (`companyCode`; sin él, «sin empresa»). Cada cambio es un proceso, con clave
+`asignar-empresa:<hotel>/<localizador>:<evento>`, dentro del candado `reservation`: gana el último.
+
+- `assign-company` adjunta a la reserva de Opera el perfil *Company* de la empresa (`PUT
+  /rsv/v1/hotels/{h}/reservations/{id}`, solo `reservationProfiles`) y le enruta el alojamiento y la
+  pensión en la ventana 2 del folio (`PUT /csh/v1/…/routingInstructions/create`, códigos
+  `ohip.company-routing-codes`, en XMAR 1100, 1137 y 1138). Sin empresa, borra el enrutado a su perfil y
+  quita el perfil.
+- Si la reserva ya tiene esa empresa, no escribe (`STALE`). Si la empresa aún no es perfil de Opera,
+  espera a su proyección (`MISSING_PARTNER`). Si Opera la rechaza, causa `PMS_REJECTED` y espera.
+
 ## `registrar-no-show` — Registrar no-show
 
 El CRS, maestro de la venta, cancela la reserva como no-show con su cargo. Un solo paso:

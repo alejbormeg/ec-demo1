@@ -3,6 +3,7 @@ package io.mateu.ecdemo1.erp.infra.in.rest;
 import io.mateu.ecdemo1.erp.application.out.PartnerRepository;
 import io.mateu.ecdemo1.erp.application.usecases.PartnerService;
 import io.mateu.ecdemo1.erp.domain.partner.PartnerDetails;
+import io.mateu.ecdemo1.erp.domain.partner.PartnerType;
 import io.mateu.ecdemo1.erp.domain.partner.PmsProfile;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
@@ -38,10 +39,16 @@ public class PartnerController {
     }
 
     @GetMapping
-    @Operation(summary = "List partners by code; the search text matches the code or the name")
+    @Operation(summary = "List partners by code; the search text matches the code or the name, and type "
+            + "(TravelAgent, TourOperator, OnlineAgency, Company) narrows them to those types, the active ones")
     public List<PartnerDto> list(@RequestParam(required = false) String search,
+                                 @RequestParam(required = false) List<PartnerType> type,
                                  @RequestParam(defaultValue = "0") int page,
                                  @RequestParam(defaultValue = "100") int size) {
+        if (type != null && !type.isEmpty()) {
+            return repository.search(search, type, null, true, page, size).partners().stream()
+                    .map(PartnerDto::of).toList();
+        }
         return repository.search(search, page, size).stream().map(PartnerDto::of).toList();
     }
 

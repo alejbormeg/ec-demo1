@@ -109,6 +109,13 @@ public class MappingController {
                 .orElseThrow(() -> new NoSuchElementException("Partner %s is not in the PMS yet".formatted(partnerCode)));
     }
 
+    @GetMapping("/partner-profiles")
+    @Operation(summary = "The partner of the CRS a PMS profile is (the reverse of /partner-profiles/{partnerCode})")
+    public PartnerProfile partnerOfProfile(@RequestParam String pmsProfileId) {
+        return partnerProfiles.findFirstByPmsProfileId(pmsProfileId)
+                .orElseThrow(() -> new NoSuchElementException("PMS profile %s is no partner's".formatted(pmsProfileId)));
+    }
+
     @PostMapping("/causes/wait")
     @Operation(summary = "Register that a process waits on causes it ran into")
     public void await(@RequestBody WaitRequest request) {
