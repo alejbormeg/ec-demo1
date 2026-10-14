@@ -5,7 +5,7 @@ description: Cómo se usa Mateu en ec-demo1 — pantallas federadas, dos rendere
 
 [Mateu](https://mateu.io) es el framework de interfaces de todas las pantallas de ec-demo1: cada servicio
 describe sus pantallas en Java (view models con anotaciones) y el renderer las dibuja. La versión es la
-misma en todos los módulos (`mateu.version`, hoy `3.0-alpha.420`).
+misma en todos los módulos (`mateu.version`, hoy `3.0-alpha.421`).
 
 ## Cómo se usa aquí
 
