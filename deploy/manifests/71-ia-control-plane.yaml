@@ -48,7 +48,7 @@ spec:
             capabilities: { drop: ["ALL"] }
       containers:
         - name: ia-control-plane
-          image: miguelperezcolom/ec-demo1-ia-control-plane:0.72.0
+          image: miguelperezcolom/ec-demo1-ia-control-plane:0.73.0
           env:
             - name: SERVER_PORT
               value: "8110"

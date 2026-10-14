@@ -19,7 +19,7 @@
     <properties>
         <java.version>21</java.version>
         <!-- Pinned rather than floating, like the shell's. -->
-        <mateu.version>3.0-alpha.419</mateu.version>
+        <mateu.version>3.0-alpha.420</mateu.version>
         <!-- Only for `shared`, the engine's DTO jar: this service uses its AggregateRoot base
              class. It tracks the engine image tag in deploy/values/eventconductor.yaml. -->
         <eventconductor.version>2.23.1</eventconductor.version>
