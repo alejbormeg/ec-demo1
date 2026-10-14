@@ -22,7 +22,7 @@
         <mateu.version>3.0-alpha.421</mateu.version>
         <!-- Only for `shared`, the engine's DTO jar: this service uses its AggregateRoot base
              class, the same as booking, content and users. -->
-        <eventconductor.version>2.23.1</eventconductor.version>
+        <eventconductor.version>2.25.1</eventconductor.version>
         <spring-ai.version>1.0.0</spring-ai.version>
     </properties>
 

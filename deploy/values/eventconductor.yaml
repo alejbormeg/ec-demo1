@@ -74,7 +74,10 @@ orchestrator:
   # 2.23.6: the process/definition diagram follows the console's dark theme (#447, first in 2.23.5,
   # whose images never shipped) and jackson 3.1.7 (CVE-2026-89407/-91776/-91777).
   # 2.23.9: the process view opens on Steps; the diagram is its last tab (eventconductor#453).
-  imageTag: "2.23.10"
+  # 2.25.1: cron schedules — Workflow → Schedules in the admin console (consult, pause/resume, run
+  # now, create/edit/delete), the REST API and MCP tools; git overwrites a UI schedule by id
+  # (eventconductor#468, #472; migrations V37, V38). 2.25.0 never shipped (eventconductor#474).
+  imageTag: "2.25.1"
   replicas: 1
   servicePort: 8105
   # The engine owns its schema now. It always could — the image ships flyway-core and

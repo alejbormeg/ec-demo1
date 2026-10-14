@@ -27,7 +27,7 @@
 
     <properties>
         <java.version>21</java.version>
-        <eventconductor.version>2.23.1</eventconductor.version>
+        <eventconductor.version>2.25.1</eventconductor.version>
         <spring-cloud.version>2024.0.0</spring-cloud.version>
         <testcontainers.version>1.21.4</testcontainers.version>
     </properties>
