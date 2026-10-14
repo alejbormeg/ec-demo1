@@ -30,44 +30,16 @@ final class EmpresaPanel {
   private EmpresaPanel() {}
 
   /**
-   * The drawer to choose a company: a search of the ERP's companies, each found with its button to set
-   * it. {@code encontradas} null: not searched yet.
+   * The drawer to choose a company: the ERP's companies as a listing like a crud's (EmpresasListing) —
+   * search, columns, pages —, a click on a row sets it.
    */
-  static Drawer busqueda(String stayId, String busqueda, List<Companies.Company> encontradas, PmsLinks.Company enLaReserva) {
-    var contenido = new ArrayList<Component>();
-    var initialData = new HashMap<String, Object>();
-    initialData.put("stayId", stayId);
-    initialData.put("empresaBusqueda", busqueda == null ? "" : busqueda);
-    contenido.add(FormField.builder().id("empresaBusqueda").label("Nombre o código de la empresa")
-        .dataType(FieldDataType.string).style("width: 100%;").build());
-    contenido.add(Button.builder().id("buscar-empresas").label("Buscar").actionId("buscarEmpresas")
-        .buttonStyle(ButtonStyle.primary).build());
-    if (encontradas != null) {
-      if (encontradas.isEmpty()) {
-        contenido.add(Text.builder().text("Ninguna empresa del ERP coincide").style("margin: 0; opacity: .7;").build());
-      }
-      if (!encontradas.isEmpty()) {
-        // a listing: a click on a company's row sets it (the row's id travels as _item)
-        contenido.add(io.mateu.uidl.data.StatusList.builder()
-            .rowActionId("elegirEmpresa")
-            .compact(true)
-            .style("width: 100%;")
-            .items(encontradas.stream().map(c -> io.mateu.uidl.data.StatusItem.builder()
-                .id(c.code())
-                .title(c.name())
-                .description(String.join(" · ", java.util.stream.Stream.of(c.code(), c.taxId(), c.city())
-                    .filter(v -> v != null && !v.isBlank()).toList()))
-                .build()).toList())
-            .build());
-      }
-    }
+  static Drawer busqueda(String stayId, PmsLinks.Company enLaReserva) {
     return Drawer.builder()
         .id(DRAWER_ID)
         .headerTitle(enLaReserva == null || enLaReserva.name() == null ? "Empresa — a quién se factura"
             : "Cambiar la empresa — ahora " + enLaReserva.name())
-        .width("36rem")
-        .content(VerticalLayout.builder().style("width: 100%; gap: .5rem;").content(contenido).build())
-        .initialData(initialData)
+        .width("56rem")
+        .content(new io.mateu.uidl.data.EmbeddedView(EmpresasListing.of(stayId)))
         .build();
   }
 

@@ -89,7 +89,9 @@ import reactor.core.publisher.Flux;
   @SubscribeTo(event = "documento-escaneado", action = "refrescarReserva"),
   @SubscribeTo(event = "firma-capturada-360", action = "opFirmaDone"),
   // el drawer del cardex cierra emitiendo este evento → el rail de huéspedes se refresca
-  @SubscribeTo(event = "cardex-guardado", action = "refrescarReserva")
+  @SubscribeTo(event = "cardex-guardado", action = "refrescarReserva"),
+  // a company picked in the drawer's listing (EmpresasListing): the header's EMPRESA
+  @SubscribeTo(event = EmpresasListing.ELEGIDA, action = "refrescarReserva")
 })
 @AutoSave(action = "buscarCargos", debounceMillis = 350)
 @Service
@@ -381,7 +383,7 @@ public class ReservaOverview
             // Mateu 392 refuses an action a component does not declare here («not an action»)
             "noShowPax", "confirmarNoShowPax", "cancelarNoShowPax", "guardarExtras",
             "abrirCaja", "enviarTableta",
-            "opEmpresa", "cambiarEmpresa", "buscarEmpresas", "elegirEmpresa", "quitarEmpresa", "guardarEmpresa")
+            "opEmpresa", "cambiarEmpresa", "quitarEmpresa", "guardarEmpresa")
         .contains(actionId);
   }
 
@@ -470,16 +472,7 @@ public class ReservaOverview
       }
       case "refrescarReserva" -> this;
       case "opEmpresa" -> drawerEmpresa();
-      case "cambiarEmpresa" -> EmpresaPanel.busqueda(stayId, null, null, empresas().of(stayId).orElse(null));
-      case "buscarEmpresas" -> {
-        var texto = drawerText(httpRequest, "empresaBusqueda");
-        yield EmpresaPanel.busqueda(stayId, texto, empresas().search(texto), empresas().of(stayId).orElse(null));
-      }
-      case "elegirEmpresa" -> {
-        empresas().set(stayId, param(httpRequest, "_item"), DeskUser.name());
-        var empresa = empresas().of(stayId).map(io.mateu.ecdemo1.frontoffice.infra.pms.PmsLinks.Company::name).orElse("");
-        yield List.of(this, new Message("Se factura a " + empresa + " — enviado a Opera"), UICommand.closeModal());
-      }
+      case "cambiarEmpresa" -> EmpresaPanel.busqueda(stayId, empresas().of(stayId).orElse(null));
       case "quitarEmpresa" -> {
         empresas().set(stayId, null, DeskUser.name());
         yield List.of(this, new Message("Reserva sin empresa — enviado a Opera"), UICommand.closeModal());
@@ -754,7 +747,7 @@ public class ReservaOverview
   /** The company's drawer: its data when the stay has one, else the search to choose it. */
   private Object drawerEmpresa() {
     var enLaReserva = empresas().of(stayId).filter(c -> c.code() != null).orElse(null);
-    return enLaReserva == null ? EmpresaPanel.busqueda(stayId, null, null, null)
+    return enLaReserva == null ? EmpresaPanel.busqueda(stayId, null)
         : EmpresaPanel.datos(stayId, empresas().details(stayId).orElse(null), enLaReserva);
   }
 
