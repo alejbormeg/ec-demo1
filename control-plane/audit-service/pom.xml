@@ -26,7 +26,7 @@
              fails the build with "TypeTag :: UNKNOWN" rather than anything that names Lombok.
              1.18.44 is what the Boot 4 modules here already resolve to. -->
         <lombok.version>1.18.44</lombok.version>
-        <eventconductor.version>2.23.1</eventconductor.version>
+        <eventconductor.version>2.25.1</eventconductor.version>
         <!-- Ahead of what Boot 3.4.3 manages (1.20.x), whose docker-java speaks an API version
              Docker 29 no longer accepts. 1.21.4 is what the engine's own container tests use. -->
         <testcontainers.version>1.21.4</testcontainers.version>

@@ -22,7 +22,7 @@
         <mateu.version>3.0-alpha.421</mateu.version>
         <!-- Only for `shared`, the engine's DTO jar: this service uses its AggregateRoot base
              class. It tracks the engine image tag in deploy/values/eventconductor.yaml. -->
-        <eventconductor.version>2.23.1</eventconductor.version>
+        <eventconductor.version>2.25.1</eventconductor.version>
     </properties>
 
     <dependencies>
