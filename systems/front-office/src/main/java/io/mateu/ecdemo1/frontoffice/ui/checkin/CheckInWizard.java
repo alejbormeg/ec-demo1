@@ -5,6 +5,7 @@ import io.mateu.ecdemo1.frontoffice.application.CheckInService;
 import io.mateu.ecdemo1.frontoffice.application.StayQueries;
 import io.mateu.ecdemo1.frontoffice.domain.room.Room;
 import io.mateu.ecdemo1.frontoffice.domain.room.RoomRepository;
+import io.mateu.ecdemo1.frontoffice.ui.common.DeskSimulations;
 import io.mateu.ecdemo1.frontoffice.ui.common.GuestHeaders;
 import io.mateu.uidl.StyleConstants;
 import io.mateu.uidl.annotations.*;
@@ -12,15 +13,12 @@ import io.mateu.uidl.data.Message;
 import io.mateu.uidl.data.UICommand;
 import io.mateu.uidl.fluent.Action;
 import io.mateu.uidl.interfaces.HttpRequest;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import reactor.core.publisher.Flux;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Service;
-import reactor.core.publisher.Mono;
 
 /**
  * The check-in flow of one arriving stay (route {@code /checkin/:id}): one step per operation still
@@ -50,12 +48,13 @@ import reactor.core.publisher.Mono;
 @WizardLabels(back = "Atrás", next = "Siguiente")
 // a scan changes the registroPax colors (per-pax green + band theme) — re-render the step
 @SubscribeTo(event = "documento-escaneado", action = "refrescarIdentidad")
-// the tablet-signature and pre-authorization SSE fluxes end by dispatching these events: a
-// fragment emitted 5 s into the stream would be dropped (the first emission rotated the
-// component's callbackToken), so the green state arrives via a FRESH action instead
+// the desk's devices (tablet, card terminal, key encoder, wifi portal) work in a progress dialog
+// (DeskSimulations) that dispatches one of these events when it closes: the green state arrives via
+// a FRESH action, which records the operation and repaints the step
 @SubscribeTo(event = "firma-capturada", action = "firmaCapturada")
 @SubscribeTo(event = "preautorizacion-completada", action = "preautorizado")
 @SubscribeTo(event = "llave-grabada", action = "llaveGrabada")
+@SubscribeTo(event = "wifi-creada", action = "wifiCreada")
 public class CheckInWizard extends Wizard {
 
   static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(CheckInWizard.class);
@@ -188,6 +187,12 @@ public class CheckInWizard extends Wizard {
     wifi.setCreada(ops.wifi());
   }
 
+  /** The room the key is written for: the one picked in the wizard, else the stay's. */
+  String roomNumber() {
+    var picked = habitacion.getHabitacionSeleccionada();
+    return picked != null && !picked.isBlank() ? picked : queries.view(stayId).stay().roomNumber();
+  }
+
   /** The Confirmar step shows data derived from the other steps — recompute it on each request. */
   void syncConfirmar() {
     var view = queries.view(stayId);
@@ -221,6 +226,9 @@ public class CheckInWizard extends Wizard {
         return java.net.URI.create("/reservas/" + stayId);
       }
       case "crearWifi" -> {
+        return DeskSimulations.wifi(WifiStep.clave(stayId), "wifi-creada");
+      }
+      case "wifiCreada" -> {
         checkIn.wifiCreated(stayId);
         wifi.setCreada(true);
         return List.of(this, new Message("Tarjeta wifi creada — red HOTEL_GUEST · clave " + WifiStep.clave(stayId)));
@@ -276,13 +284,7 @@ public class CheckInWizard extends Wizard {
         return siguientePax(httpRequest);
       }
       case "encodeKey" -> {
-        // SSE: re-render immediately as "Grabando llave…"; 5 s later (the encoder finishes)
-        // dispatch llave-grabada — the @SubscribeTo above reloads.
-        llave.setLlaveEstado("grabando");
-        return Flux.concat(
-            Flux.<Object>just(List.of(this, new Message("Grabando llave / pulsera…"))),
-            Mono.delay(Duration.ofSeconds(5))
-                .map(tick -> (Object) UICommand.dispatchEvent("llave-grabada")));
+        return DeskSimulations.llave(roomNumber(), "llave-grabada");
       }
       case "llaveGrabada" -> {
         llave.setLlaveEstado("grabada");
@@ -290,19 +292,8 @@ public class CheckInWizard extends Wizard {
         return List.of(this, new Message("Llave / pulsera grabada"));
       }
       case "requestPreauth" -> {
-        // SSE: re-render immediately as "Solicitando preautorización…"; 5 s later (the TPV
-        // answers) dispatch preautorizacion-completada — the @SubscribeTo above reloads.
-        cobro.setPreauthEstado("solicitando");
-        return Flux.concat(
-            Flux.<Object>just(
-                List.of(
-                    this,
-                    new Message(
-                        "Preautorización solicitada — "
-                            + GuestHeaders.euros(confirmar.getTotalEstancia())
-                            + " en la tarjeta del huésped"))),
-            Mono.delay(Duration.ofSeconds(5))
-                .map(tick -> (Object) UICommand.dispatchEvent("preautorizacion-completada")));
+        return DeskSimulations.preautorizacion(GuestHeaders.euros(confirmar.getTotalEstancia()),
+            "preautorizacion-completada");
       }
       case "preautorizado" -> {
         cobro.setPreauthEstado("preautorizado");
@@ -313,14 +304,7 @@ public class CheckInWizard extends Wizard {
                 "Preautorizado — " + GuestHeaders.euros(confirmar.getTotalEstancia())));
       }
       case "sendToTablet" -> {
-        // SSE: re-render immediately as "Enviado · Esperando firma"; 5 s later (the guest signs
-        // on the tablet) dispatch firma-capturada — the @SubscribeTo above reloads the wizard.
-        firma.setFirmaEstado("enviada");
-        return Flux.concat(
-            Flux.<Object>just(
-                List.of(this, new Message("Documento de registro enviado a la tablet Civitfun"))),
-            Mono.delay(Duration.ofSeconds(5))
-                .map(tick -> (Object) UICommand.dispatchEvent("firma-capturada")));
+        return DeskSimulations.firma("firma-capturada");
       }
       case "forzarCheckin" -> {
         return forzarCheckin();
@@ -388,15 +372,15 @@ public class CheckInWizard extends Wizard {
             "firmaCapturada",
             "preautorizado",
             "llaveGrabada",
+            "wifiCreada",
             "forzarCheckin",
-            "volverReserva",
-            "crearWifi")) {
+            "volverReserva")) {
       actions.add(Action.builder().id(id).build());
     }
-    // stream two increments each: the in-flight state now, the confirmation 5 s later
-    actions.add(Action.builder().id("sendToTablet").sse(true).build());
-    actions.add(Action.builder().id("requestPreauth").sse(true).build());
-    actions.add(Action.builder().id("encodeKey").sse(true).build());
+    // a device at work: a progress dialog over SSE (DeskSimulations)
+    for (var id : List.of("sendToTablet", "requestPreauth", "encodeKey", "crearWifi")) {
+      actions.add(Action.builder().id(id).sse(true).build());
+    }
     return actions;
   }
 

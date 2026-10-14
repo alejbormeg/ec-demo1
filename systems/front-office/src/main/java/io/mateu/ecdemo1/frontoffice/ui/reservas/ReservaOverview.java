@@ -609,14 +609,7 @@ public class ReservaOverview
       case "opFirma" ->
           // SSE: diálogo de progreso mientras la tablet trabaja; al cerrar, el evento
           // dispara opFirmaDone vía la suscripción de la clase
-          LongTask.create("Firma en tablet")
-              .withProgressBar()
-              .done("Firma capturada", "Registro firmado por el huésped")
-              .closeAfter(1)
-              .withCommand(UICommand.dispatchEvent("firma-capturada-360"))
-              .run(progress -> Flux.range(1, 3)
-                  .delayElements(Duration.ofMillis(1200))
-                  .map(i -> progress.step(PASOS_FIRMA[i - 1], i / 3.0)));
+          io.mateu.ecdemo1.frontoffice.ui.common.DeskSimulations.firma("firma-capturada-360");
       case "opFirmaDone" -> {
         firmaEnviada = false;
         checkIn.registrationSigned(stayId, DeskUser.name());
@@ -960,7 +953,4 @@ public class ReservaOverview
     "Encendiendo el escáner…", "Leyendo el documento…", "Extrayendo los datos…", "Verificando la identidad…"
   };
 
-  private static final String[] PASOS_FIRMA = {
-    "Enviando el registro a la tablet…", "Esperando la firma del huésped…", "Recibiendo la firma…"
-  };
 }

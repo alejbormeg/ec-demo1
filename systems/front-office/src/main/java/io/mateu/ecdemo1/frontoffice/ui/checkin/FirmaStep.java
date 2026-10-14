@@ -25,14 +25,13 @@ public class FirmaStep implements WizardStep {
 
   @Hidden String stayId;
 
-  /** pendiente → enviada (tablet) → firmada. */
+  /** pendiente → firmada (the tablet works in a progress dialog: DeskSimulations). */
   @Hidden String firmaEstado = "pendiente";
 
   @Label("")
   Callable<Component> header = () -> GuestHeaders.checkInHeader(stayId);
 
-  // the send button → an "Enviado · Esperando firma" chip while the tablet waits (the wizard's SSE
-  // flux flips the state 5 s later) → a green notice once signed
+  // the send button → a green notice once signed
   @Label("")
   Callable<Component> firma =
       () -> {
@@ -43,7 +42,6 @@ public class FirmaStep implements WizardStep {
               .fullWidth(true)
               .build();
         }
-        var enviado = "enviada".equals(firmaEstado);
         return StatusList.builder()
             .style("width: 100%;")
             .items(List.of(StatusItem.builder()
@@ -51,10 +49,8 @@ public class FirmaStep implements WizardStep {
                 .icon("✍")
                 .title("Firma de bienvenida — tablet Civitfun")
                 .description("Envía el documento de registro a la tablet del mostrador para la firma del huésped")
-                .status(enviado ? "Enviado · Esperando firma" : null)
-                .statusColor(enviado ? "warning" : null)
-                .actionLabel(enviado ? null : "Enviar a tablet")
-                .actionId(enviado ? null : "sendToTablet")
+                .actionLabel("Enviar a tablet")
+                .actionId("sendToTablet")
                 .build()))
             .build();
       };

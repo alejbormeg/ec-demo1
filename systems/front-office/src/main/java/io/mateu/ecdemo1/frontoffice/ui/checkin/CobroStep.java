@@ -25,15 +25,14 @@ public class CobroStep implements WizardStep {
   @Hidden String stayId;
   @Hidden Double totalEstancia;
 
-  /** pendiente → solicitando (TPV) → preautorizado. */
+  /** pendiente → preautorizado (the card terminal works in a progress dialog: DeskSimulations). */
   @Hidden String preauthEstado = "pendiente";
 
   @Label("")
   Callable<Component> header = () -> GuestHeaders.checkInHeader(stayId);
 
   // The stay total framed in a full-width notice: title on top, the amount BIG below. Warning-tinted
-  // while a pre-authorization is still needed; the CTA turns into a "solicitando…" line on click and,
-  // when the TPV answers (5 s later via SSE), the whole card goes green.
+  // while a pre-authorization is still needed; once the terminal answers the whole card goes green.
   @Label("")
   Callable<Component> totalBand =
       () -> {
@@ -50,10 +49,10 @@ public class CobroStep implements WizardStep {
                 .noMargins(true)
                 .style("font-size: 1.8rem; font-weight: 700; line-height: 1.1; color: " + ink + ";")
                 .build()));
-        switch (preauthEstado) {
-          case "solicitando" -> notice.status("Solicitando preautorización…");
-          case "preautorizado" -> notice.status("✓ Preautorizado");
-          default -> notice.actionLabel("Solicitar Preautorización").actionId("requestPreauth");
+        if (ok) {
+          notice.status("✓ Preautorizado");
+        } else {
+          notice.actionLabel("Solicitar Preautorización").actionId("requestPreauth");
         }
         return notice.build();
       };

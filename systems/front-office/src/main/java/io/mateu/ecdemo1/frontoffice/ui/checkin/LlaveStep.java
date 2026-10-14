@@ -22,13 +22,13 @@ public class LlaveStep implements WizardStep {
 
   @Hidden String stayId;
 
-  /** pendiente → grabando (encoder) → grabada. */
+  /** pendiente → grabada (the encoder works in a progress dialog: DeskSimulations). */
   @Hidden String llaveEstado = "pendiente";
 
   @Label("")
   Callable<Component> header = () -> GuestHeaders.checkInHeader(stayId);
 
-  // encode button → "Grabando…" chip → once encoded the whole card goes green
+  // encode button → once encoded the whole card goes green
   @Label("")
   Callable<Component> llave =
       () -> {
@@ -43,12 +43,9 @@ public class LlaveStep implements WizardStep {
             .id("llave")
             .icon("🔑")
             .title("Grabar llave / pulsera")
-            .description("Complemento de llave digital");
-        if ("grabando".equals(llaveEstado)) {
-          item.status("Grabando llave…").statusColor("warning");
-        } else {
-          item.actionLabel("Grabar").actionId("encodeKey");
-        }
+            .description("Complemento de llave digital")
+            .actionLabel("Grabar")
+            .actionId("encodeKey");
         return StatusList.builder().style("width: 100%;").items(List.of(item.build())).build();
       };
 
