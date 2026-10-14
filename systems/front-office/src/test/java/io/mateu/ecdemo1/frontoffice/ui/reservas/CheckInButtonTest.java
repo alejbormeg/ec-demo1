@@ -43,8 +43,8 @@ class CheckInButtonTest {
   }
 
   @Test
-  void soloLaWifiSeHaceEnSuTarjeta() {
-    assertEquals(Siguiente.TARJETA, LlegadaPanel.siguiente(ops("wifi"), true, true));
-    assertEquals("Tarjeta wifi («Crear»)", LlegadaPanel.soloEnTarjeta(ops("wifi")));
+  void laWifiTambienTieneSuPasoEnElWizard() {
+    // un paso por operación pendiente: la wifi ya no se pide solo en su tarjeta
+    assertEquals(Siguiente.WIZARD, LlegadaPanel.siguiente(ops("wifi"), true, true));
   }
 }

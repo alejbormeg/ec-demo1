@@ -179,6 +179,35 @@ class StayMapperTest {
     }
 
     @Test
+    void aCompanyOnTheReservationIsWhoIsBilledNotWhoSoldIt() throws Exception {
+        var node = (com.fasterxml.jackson.databind.node.ObjectNode) reservation("Reserved", "", CRS_REFS);
+        // as XMAR has it (reservation 28846078): the profile's id, and its CorporateId — the partner's code
+        node.set("reservationProfiles", JSON.readTree("""
+                {"reservationProfile": [
+                   {"profileIdList": [{"id": "16120788", "type": "Profile"}],
+                    "profile": {"company": {"companyName": "P.DIFERIDO RIU CLASS CA"}}, "reservationProfileType": "TravelAgent"},
+                   {"profileIdList": [{"id": "16120716", "type": "Profile"}, {"id": "09900171", "type": "CorporateId"}],
+                    "profile": {"company": {"companyName": "BOOKING REST OF EUROPE (CRE)"}}, "reservationProfileType": "Company"}]}"""));
+        var w = StayMapper.toWriteStay("XMAR", node, NO_CUSTOMER);
+        assertThat(w.agency()).isEqualTo("P.DIFERIDO RIU CLASS CA");
+        assertThat(w.companyName()).isEqualTo("BOOKING REST OF EUROPE (CRE)");
+        assertThat(StayMapper.company(node)).hasValue(new StayMapper.Company("16120716", "BOOKING REST OF EUROPE (CRE)", "09900171"));
+        assertThat(StayMapper.withCompanyCode(w, "09900171").companyCode()).isEqualTo("09900171");
+    }
+
+    @Test
+    void aCompanyAloneIsNoAgency() throws Exception {
+        var node = (com.fasterxml.jackson.databind.node.ObjectNode) reservation("Reserved", "", CRS_REFS);
+        node.set("reservationProfiles", JSON.readTree("""
+                {"reservationProfile": [{"profileIdList": [{"id": "16120716", "type": "Profile"}],
+                    "profile": {"company": {"companyName": "ACME"}}, "reservationProfileType": "Company"}]}"""));
+        var w = StayMapper.toWriteStay("XMAR", node, NO_CUSTOMER);
+        assertThat(w.agency()).startsWith("Directo");
+        assertThat(w.companyName()).isEqualTo("ACME");
+        assertThat(w.companyCode()).isNull();
+    }
+
+    @Test
     void operasTimesBecomeIsoLocalDateTimes() {
         assertThat(StayMapper.isoLocal("2026-03-13 22:01:45.0")).isEqualTo("2026-03-13T22:01:45");
         assertThat(StayMapper.isoLocal("2026-03-13")).isEqualTo("2026-03-13T00:00:00");

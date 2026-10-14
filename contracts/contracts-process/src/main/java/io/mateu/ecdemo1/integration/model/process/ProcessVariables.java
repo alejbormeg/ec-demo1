@@ -69,6 +69,10 @@ public final class ProcessVariables {
     /** The PMS's posting of the charge, and of its reversal (their transaction numbers). */
     public static final String PMS_POSTING_ID = "pmsPostingId";
     public static final String PMS_REVERSAL_ID = "pmsReversalId";
+    /** asignar-empresa: the company billed (a partner's code; blank: none) and its name; what the step did. */
+    public static final String COMPANY_CODE = "companyCode";
+    public static final String COMPANY_NAME = "companyName";
+    public static final String COMPANY_OUTCOME = "companyOutcome";
 
     private ProcessVariables() {
     }

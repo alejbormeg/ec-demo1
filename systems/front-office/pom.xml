@@ -19,7 +19,7 @@
     <description>The hotel's front office — check-in, the in-house guests, check-out and folios — brought from Mateu's demo; the integration writes into it every reservation it writes into the PMS</description>
     <properties>
         <java.version>21</java.version>
-        <mateu.version>3.0-alpha.402</mateu.version>
+        <mateu.version>3.0-alpha.421</mateu.version>
         <lombok.version>1.18.44</lombok.version>
         <spring-ai.version>2.0.1</spring-ai.version>
     </properties>

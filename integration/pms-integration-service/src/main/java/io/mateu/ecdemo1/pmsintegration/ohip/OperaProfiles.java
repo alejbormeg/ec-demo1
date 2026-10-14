@@ -138,6 +138,44 @@ public class OperaProfiles {
 
     /** A partner as the profile Opera routes and bills through: Agent, Company or Source (F004). */
     public Ensured ensurePartner(String hotelId, Partner partner, String profileType) {
+        var profile = partnerProfile(partner, profileType);
+        if (!properties.profileReferences()) {
+            // No external references on this tenant's profiles: the partner is known by its CorporateId
+            // — its code in the chain — which is what a later search finds it by.
+            profile.putArray("profileIdList").addObject().put("id", partner.code()).put("type", "CorporateId");
+            return new Ensured(lastSegment(ohip.post(hotelId, "/crm/v1/profiles", profile).location()), true);
+        }
+        return ensure(hotelId, "PARTNER-" + partner.code(), profile);
+    }
+
+    /**
+     * The partner's profile Opera already has, brought up to the partner — its name, tax id, address and
+     * email changed in place — unless it carries this version already. False when it did.
+     */
+    public boolean updatePartner(String hotelId, String profileId, Partner partner, String profileType) {
+        var current = ohip.get(hotelId, "/crm/v1/profiles/{id}?fetchInstructions=Profile&fetchInstructions=Address",
+                profileId).body();
+        if (projectedVersion(current) >= partner.version()) {
+            return false;
+        }
+        var profile = partnerProfile(partner, profileType);
+        var details = (ObjectNode) profile.get("profileDetails");
+        if (details.has("addresses")) {
+            // an address sent without its id is added next to the old one: the primary one is changed
+            var existing = primary(current.path("profileDetails").path("addresses").path("addressInfo"), "address");
+            if (existing != null && existing.has("id")) {
+                var entry = (ObjectNode) details.path("addresses").path("addressInfo").get(0);
+                entry.put("id", existing.path("id").asText());
+                entry.put("type", existing.path("type").asText("Address"));
+            }
+        }
+        onTheExistingEntries(hotelId, profileId, profile);
+        ohip.put(hotelId, "/crm/v1/profiles/{id}", profile, profileId);
+        return true;
+    }
+
+    /** What Opera's profile of a partner says: its type, name, tax id, address, email and the version. */
+    ObjectNode partnerProfile(Partner partner, String profileType) {
         var profile = objectMapper.createObjectNode();
         var details = profile.putObject("profileDetails");
         details.put("profileType", profileType);
@@ -157,13 +195,7 @@ public class OperaProfiles {
         }
         details.putObject("userDefinedFields").putArray("numericUDFs").addObject()
                 .put("name", properties.versionUdf()).put("value", partner.version());
-        if (!properties.profileReferences()) {
-            // No external references on this tenant's profiles: the partner is known by its CorporateId
-            // — its code in the chain — which is what a later search finds it by.
-            profile.putArray("profileIdList").addObject().put("id", partner.code()).put("type", "CorporateId");
-            return new Ensured(lastSegment(ohip.post(hotelId, "/crm/v1/profiles", profile).location()), true);
-        }
-        return ensure(hotelId, "PARTNER-" + partner.code(), profile);
+        return profile;
     }
 
     /** The version of the partner last written to its profile, or -1 if it has none. */

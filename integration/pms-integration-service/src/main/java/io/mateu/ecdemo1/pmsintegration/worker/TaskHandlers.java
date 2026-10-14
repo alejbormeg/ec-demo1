@@ -428,6 +428,21 @@ public class TaskHandlers {
     public PartnerProfiled ensurePartnerProfile(PartnerTask input, TaskContext task) {
         var partner = integration.partner(required(task, ProcessVariables.PARTNER_CODE, input.partnerCode()));
         if (partner.pmsProfileId() != null && !partner.pmsProfileId().isBlank()) {
+            // the profile the ERP records, brought up to a change of the partner (its data edited at the
+            // ERP or the front office); as it is when it carries this version already
+            try {
+                if (partner.pmsProfileType() != null && profiles.updatePartner(anyHotel(), partner.pmsProfileId(), partner,
+                        partner.pmsProfileType())) {
+                    log.info("Partner {} v{}: its profile {} in Opera brought up to date", partner.code(), partner.version(),
+                            partner.pmsProfileId());
+                    return profiled(Outcome.OK, partner.pmsProfileId(), partner.pmsProfileType());
+                }
+            } catch (PmsRejectedException e) {
+                integration.await(required(task, ProcessVariables.PROCESS_KEY, input.processKey()),
+                        required(task, ProcessVariables.DEFINITION_ID, input.definitionId()), null,
+                        partner.code(), input.variables(), List.of(Cause.pmsRejectedPartner(partner.code(), e.reason())));
+                return new PartnerProfiled(Outcome.WAIT.name(), null, null);
+            }
             log.info("Partner {} is already profile {} in Opera, as the ERP records", partner.code(), partner.pmsProfileId());
             return profiled(Outcome.STALE, partner.pmsProfileId(), partner.pmsProfileType());
         }

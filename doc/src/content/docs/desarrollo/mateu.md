@@ -5,7 +5,7 @@ description: Cómo se usa Mateu en ec-demo1 — pantallas federadas, dos rendere
 
 [Mateu](https://mateu.io) es el framework de interfaces de todas las pantallas de ec-demo1: cada servicio
 describe sus pantallas en Java (view models con anotaciones) y el renderer las dibuja. La versión es la
-misma en todos los módulos (`mateu.version`, hoy `3.0-alpha.402`).
+misma en todos los módulos (`mateu.version`, hoy `3.0-alpha.421`).
 
 ## Cómo se usa aquí
 
@@ -27,6 +27,14 @@ misma en todos los módulos (`mateu.version`, hoy `3.0-alpha.402`).
   mensaje es lo que lee el usuario, en el idioma de la pantalla: `new NoSuchElementException("Reserva " +
   id + " no encontrada")`, no «No stay X» ni un `Optional.get()` pelado (sin mensaje útil, Mateu pone uno
   genérico con el id). Una acción sobre una pantalla que sí existe no cambia: sigue siendo un error.
+
+
+**Desde la `3.0-alpha.415`, cada shell necesita `MATEU_SELF_BASE_URL`.** Mateu resuelve un `RemoteMenu`
+relativo (`/_booking`…) contra `mateu.self-base-url` y ya no contra el `Origin` de la petición, que era un
+SSRF. Sin esa variable, el shell se llama a sí mismo (`localhost:8101/_booking/…`, 404) y todas las
+pantallas remotas fallan. Su valor es el host público de cada consola (`https://ec1.mateu.io`,
+`https://rw.ec1.mateu.io`, `https://console.ec1.mateu.io`, `https://rw-console.ec1.mateu.io`), porque el
+gateway enruta cada `/_<servicio>` por host. `deploy/local/up.sh` lo traduce a `http://*.localhost:8800`.
 
 ## Subir de versión
 

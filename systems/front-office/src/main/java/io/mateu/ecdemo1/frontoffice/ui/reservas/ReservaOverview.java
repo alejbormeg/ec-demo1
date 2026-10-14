@@ -1,5 +1,7 @@
 package io.mateu.ecdemo1.frontoffice.ui.reservas;
 
+import io.mateu.ecdemo1.frontoffice.ui.checkin.DocumentoView;
+
 import io.mateu.ecdemo1.frontoffice.application.CheckInService;
 import io.mateu.ecdemo1.frontoffice.application.CheckOutService;
 import io.mateu.ecdemo1.frontoffice.application.FolioService;
@@ -87,7 +89,9 @@ import reactor.core.publisher.Flux;
   @SubscribeTo(event = "documento-escaneado", action = "refrescarReserva"),
   @SubscribeTo(event = "firma-capturada-360", action = "opFirmaDone"),
   // el drawer del cardex cierra emitiendo este evento → el rail de huéspedes se refresca
-  @SubscribeTo(event = "cardex-guardado", action = "refrescarReserva")
+  @SubscribeTo(event = "cardex-guardado", action = "refrescarReserva"),
+  // a company picked in the drawer's listing (EmpresasListing): the header's EMPRESA
+  @SubscribeTo(event = EmpresasListing.ELEGIDA, action = "refrescarReserva")
 })
 @AutoSave(action = "buscarCargos", debounceMillis = 350)
 @Service
@@ -161,22 +165,10 @@ public class ReservaOverview
   @Hidden boolean modoExtras;
   @Hidden boolean firmaEnviada;
 
-  // ── cardex manual del huésped seleccionado (el formulario abre en un drawer) ─
-  @Hidden String paxDocumento;
-  @Hidden String paxNombre;
-  @Hidden String paxEmail;
-  @Hidden String paxTelefono;
   @Hidden String metodoPago = "card";
   @Hidden String cargoBusqueda;
   @Hidden String ultimaBusqueda;
 
-  // ── «Cliente»: el pax cuyo reconocimiento se muestra y la búsqueda de recepción (Riu Class / email,
-  // o nombre + fecha de nacimiento) — campos de la página que pintan los FormField del panel ──────
-  @Hidden int paxCliente = 1;
-  @Hidden String clienteBusqueda;
-  @Hidden String clienteNombre;
-  @Hidden String clienteApellidos;
-  @Hidden String clienteNacimiento;
 
   /** Who each pax is in the chain; none in a test that builds the page by hand. */
   @Getter(AccessLevel.NONE) io.mateu.ecdemo1.frontoffice.application.Recognition recognition;
@@ -192,8 +184,9 @@ public class ReservaOverview
   Callable<Component> header =
       () ->
           switch (stay().status()) {
-            case ARRIVING -> GuestHeaders.arrivalHeader(stayId);
-            case IN_HOUSE -> GuestHeaders.inHouseHeader(stayId);
+            // EMPRESA with its ✎, which opens the company's drawer
+            case ARRIVING -> GuestHeaders.arrivalHeader(stayId, true);
+            case IN_HOUSE -> GuestHeaders.inHouseHeader(stayId, true);
             case DEPARTED -> GuestHeaders.departureHeader(stayId);
             case CANCELLED, NO_SHOW -> GuestHeaders.arrivalHeader(stayId);
           };
@@ -287,7 +280,7 @@ public class ReservaOverview
         .headerTitle("Huéspedes")
         .overview(VerticalLayout.builder()
             .style("width: 100%; gap: 1rem;")
-            .content(List.of(huespedes().rail(stay, false), huespedes().cliente(stay)))
+            .content(List.of(huespedes().rail(stay, false)))
             .build())
         .panels(List.of(
             FoldoutPanel.builder()
@@ -360,16 +353,13 @@ public class ReservaOverview
           Button.builder().label(llegada().listo(stay) ? "Confirmar check-in" : "Completar check-in")
               .actionId("iniciarCheckin")
               .buttonStyle(ButtonStyle.primary)
-              .build(),
-          // the guest does it themselves on the lobby tablet (Civitfun, simulated)
-          Button.builder().label("Check-in en tableta").actionId("enviarTableta").build(),
-          Button.builder().label("Caja").actionId("abrirCaja").build());
+              .build());
+          // the lobby tablet and the till are the header's icons (CHECK-IN, the amount)
       case IN_HOUSE -> List.of(
           Button.builder().label("Check-out").actionId("irCheckout").buttonStyle(ButtonStyle.primary).build(),
           Button.builder().label("Añadir cargo").actionId("opCargos").build(),
           Button.builder().label("Cambiar habitación").actionId("opHabitacion").build(),
           Button.builder().label("Gestionar folio").actionId("gestionFolio").build(),
-          Button.builder().label("Caja").actionId("abrirCaja").build(),
           Button.builder().label("Mensaje huésped").actionId("mensajeHuesped").build(),
           Button.builder().label("Registrar petición").actionId("opPeticion").build(),
           Button.builder().label("Nueva incidencia").actionId("opIncidencia").build());
@@ -381,7 +371,7 @@ public class ReservaOverview
   public boolean supportsAction(String actionId) {
     return List.of("iniciarCheckin", "irCheckout", "volverReserva", "mensajeHuesped",
             "opWifi", "opLlave", "opHabitacion", "elegirHabitacion", "upgrade360",
-            "volverHabitacion", "escanearPax", "rellenarPax", "guardarPax", "refrescarReserva",
+            "volverHabitacion", "escanearPax", "rellenarPax", "refrescarReserva",
             "siguienteReserva", "volverListado",
             "opCobro", "metodoCobro", "confirmarCobro",
             "opCargos", "postearCargo", "resolverIncidencia", "lateCheckout",
@@ -392,7 +382,8 @@ public class ReservaOverview
             "anularCargo", "comprobarHabitacion", "completarCheckin",
             // Mateu 392 refuses an action a component does not declare here («not an action»)
             "noShowPax", "confirmarNoShowPax", "cancelarNoShowPax", "guardarExtras",
-            "clientePax", "confirmarCliente", "buscarClientePorNombre", "abrirCaja", "enviarTableta")
+            "abrirCaja", "enviarTableta",
+            "opEmpresa", "cambiarEmpresa", "quitarEmpresa", "guardarEmpresa")
         .contains(actionId);
   }
 
@@ -479,41 +470,22 @@ public class ReservaOverview
         paxSeleccionado = paxDe(httpRequest);
         yield drawerPax();
       }
-      case "guardarPax" -> {
-        kardex.registered(stayId, paxSeleccionado, paxDocumento, paxNombre, paxEmail, paxTelefono);
-        var nombre = nameOf(paxSeleccionado);
-        paxDocumento = null;
-        paxNombre = null;
-        paxEmail = null;
-        paxTelefono = null;
-        // cierra el drawer emitiendo el evento al que está suscrita la página (refresco del rail)
-        yield List.of(new Message("Kárdex registrado — " + nombre), UICommand.closeModal("cardex-guardado"));
-      }
       case "refrescarReserva" -> this;
-      case "clientePax" -> {
-        paxCliente = (int) Double.parseDouble(param(httpRequest, "paxIndex"));
-        yield this;
+      case "opEmpresa" -> drawerEmpresa();
+      case "cambiarEmpresa" -> EmpresaPanel.busqueda(stayId, empresas().of(stayId).orElse(null));
+      case "quitarEmpresa" -> {
+        empresas().set(stayId, null, DeskUser.name());
+        yield List.of(this, new Message("Reserva sin empresa — enviado a Opera"), UICommand.closeModal());
       }
-      case "confirmarCliente" -> {
-        if (recognition == null) {
-          yield new Message("El reconocimiento de clientes no está disponible");
+      case "guardarEmpresa" -> {
+        var empresa = EmpresaPanel.posted(httpRequest.runActionRq().componentState());
+        try {
+          empresas().correct(stayId, empresa, DeskUser.name());
+        } catch (RuntimeException e) {
+          yield new Message("⛔ " + e.getMessage());
         }
-        var answer = recognition.confirm(stayId, paxCliente, DeskUser.name(), clienteBusqueda);
-        if (answer.done()) {
-          clienteBusqueda = null;
-        }
-        yield List.of(this, new Message((answer.done() ? "★ " : "") + answer.message()));
-      }
-      case "buscarClientePorNombre" -> {
-        if (recognition == null) {
-          yield new Message("El reconocimiento de clientes no está disponible");
-        }
-        var nombre = nameOf(paxCliente).trim().split("\\s+", 2);
-        var answer = recognition.searchByName(stayId, paxCliente,
-            blank(clienteNombre) ? nombre[0] : clienteNombre.trim(),
-            blank(clienteApellidos) ? (nombre.length > 1 ? nombre[1] : null) : clienteApellidos.trim(),
-            fecha(clienteNacimiento));
-        yield List.of(this, new Message(answer.message()));
+        yield List.of(this, new Message("Datos de " + empresa.name() + " guardados en el ERP; Opera los recibe del ERP"),
+            UICommand.closeModal());
       }
       case "opHabitacion" -> llegada().drawerHabitacion(stay());
       case "volverHabitacion" -> {
@@ -630,14 +602,7 @@ public class ReservaOverview
       case "opFirma" ->
           // SSE: diálogo de progreso mientras la tablet trabaja; al cerrar, el evento
           // dispara opFirmaDone vía la suscripción de la clase
-          LongTask.create("Firma en tablet")
-              .withProgressBar()
-              .done("Firma capturada", "Registro firmado por el huésped")
-              .closeAfter(1)
-              .withCommand(UICommand.dispatchEvent("firma-capturada-360"))
-              .run(progress -> Flux.range(1, 3)
-                  .delayElements(Duration.ofMillis(1200))
-                  .map(i -> progress.step(PASOS_FIRMA[i - 1], i / 3.0)));
+          io.mateu.ecdemo1.frontoffice.ui.common.DeskSimulations.firma("firma-capturada-360");
       case "opFirmaDone" -> {
         firmaEnviada = false;
         checkIn.registrationSigned(stayId, DeskUser.name());
@@ -768,20 +733,27 @@ public class ReservaOverview
     var guest = view.guest();
     var companion = paxSeleccionado <= 1 ? null : view.stay().companionAt(paxSeleccionado);
     var completo = paxSeleccionado <= 1 ? guest.identityComplete() : companion != null && companion.identityComplete();
-    var initialData = new HashMap<String, Object>();
-    initialData.put("stayId", stayId);
-    initialData.put("paxSeleccionado", paxSeleccionado);
-    initialData.put("paxDocumento", orBlank(paxSeleccionado <= 1 ? guest.document() : companion == null ? null : companion.document()));
-    initialData.put("paxNombre", orBlank(nameOf(paxSeleccionado)));
-    initialData.put("paxEmail", orBlank(paxSeleccionado <= 1 ? guest.email() : companion == null ? null : companion.email()));
-    initialData.put("paxTelefono", orBlank(paxSeleccionado <= 1 ? guest.phone() : companion == null ? null : companion.phone()));
+    var titulo = (completo ? "Validar / editar huésped " : "Registrar huésped ") + paxSeleccionado + " — "
+        + nameOf(paxSeleccionado);
+    // the check-in's kárdex as a form of its own: its four columns, its state and its save
     return io.mateu.uidl.data.Drawer.builder()
-        .headerTitle((completo ? "Validar / editar huésped " : "Registrar huésped ")
-            + paxSeleccionado + " — " + nameOf(paxSeleccionado))
-        .width("28rem")
-        .content(huespedes().formularioPax())
-        .initialData(initialData)
+        .width("72rem")
+        .content(new io.mateu.uidl.data.EmbeddedView(KardexDrawerForm.of(stayId, paxSeleccionado, titulo)))
         .build();
+  }
+
+
+
+  /** The company's drawer: its data when the stay has one, else the search to choose it. */
+  private Object drawerEmpresa() {
+    var enLaReserva = empresas().of(stayId).filter(c -> c.code() != null).orElse(null);
+    return enLaReserva == null ? EmpresaPanel.busqueda(stayId, null)
+        : EmpresaPanel.datos(stayId, empresas().details(stayId).orElse(null), enLaReserva);
+  }
+
+  /** The stays' companies — asked of Mateu's bean provider: a page's non-final service fields are walked as state. */
+  private static io.mateu.ecdemo1.frontoffice.application.StayCompanies empresas() {
+    return io.mateu.uidl.di.MateuBeanProvider.getBean(io.mateu.ecdemo1.frontoffice.application.StayCompanies.class);
   }
 
   private Object confirmarCobro(HttpRequest httpRequest) {
@@ -960,14 +932,6 @@ public class ReservaOverview
     return value == null || value.isBlank();
   }
 
-  /** A date the page's date field posted («2026-10-09», maybe with a time); null if none or not one. */
-  static java.time.LocalDate fecha(String value) {
-    try {
-      return blank(value) ? null : java.time.LocalDate.parse(value.trim().length() > 10 ? value.trim().substring(0, 10) : value.trim());
-    } catch (RuntimeException e) {
-      return null;
-    }
-  }
 
   private static String orBlank(String value) {
     return value == null ? "" : value;
@@ -982,7 +946,4 @@ public class ReservaOverview
     "Encendiendo el escáner…", "Leyendo el documento…", "Extrayendo los datos…", "Verificando la identidad…"
   };
 
-  private static final String[] PASOS_FIRMA = {
-    "Enviando el registro a la tablet…", "Esperando la firma del huésped…", "Recibiendo la firma…"
-  };
 }

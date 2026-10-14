@@ -1,5 +1,6 @@
 package io.mateu.ecdemo1.frontoffice.ui.reservas;
 
+
 import io.mateu.ecdemo1.frontoffice.domain.guest.Guest;
 import io.mateu.ecdemo1.frontoffice.domain.guest.KardexChange;
 import io.mateu.ecdemo1.frontoffice.domain.stay.IncidentStatus;
@@ -80,45 +81,6 @@ final class HuespedesPanel {
     all.add(linea.get());
     all.addAll(lines);
     return all;
-  }
-
-  /**
-   * «Cliente»: quién es en la cadena el pax elegido (uno por pax con más de uno) — «Cliente conocido»
-   * con el resumen de sus estancias y su Riu Class, o «Posible cliente conocido» con nombres y fechas
-   * de nacimiento — y la búsqueda de recepción preguntando al huésped: su número Riu Class o su email
-   * (da certeza) o su nombre y fecha de nacimiento (solo «posible»).
-   */
-  Component cliente(Stay stay) {
-    var pax = Math.max(1, Math.min(r.paxCliente, stay.pax()));
-    var contenido = new ArrayList<Component>();
-    contenido.add(Text.builder().text("Cliente").container(TextContainer.h3).style("margin: 0;").build());
-    if (stay.pax() > 1) {
-      var botones = new ArrayList<Component>();
-      for (int i = 1; i <= stay.pax(); i++) {
-        botones.add(Button.builder()
-            .id("cliente-pax-" + i)
-            .label(i + "/" + stay.pax())
-            .actionId("clientePax")
-            .parameters(java.util.Map.of("paxIndex", i))
-            .buttonStyle(i == pax ? io.mateu.uidl.data.ButtonStyle.primary : null)
-            .build());
-      }
-      contenido.add(io.mateu.uidl.data.HorizontalLayout.builder().content(botones)
-          .style("gap: .5rem; flex-wrap: wrap;").build());
-    }
-    contenido.add(io.mateu.ecdemo1.frontoffice.ui.common.CustomerPanels.panel(
-        io.mateu.ecdemo1.frontoffice.ui.common.FrontOffice.recognition(stay.id(), pax)));
-    contenido.add(campo("clienteBusqueda", "Nº Riu Class o email", FieldDataType.string));
-    contenido.add(Button.builder().id("confirmar-cliente").label("Confirmar cliente").actionId("confirmarCliente").build());
-    contenido.add(campo("clienteNombre", "Nombre", FieldDataType.string));
-    contenido.add(campo("clienteApellidos", "Apellidos", FieldDataType.string));
-    contenido.add(campo("clienteNacimiento", "Fecha de nacimiento", FieldDataType.date));
-    contenido.add(Button.builder().id("buscar-cliente").label("Buscar por nombre").actionId("buscarClientePorNombre").build());
-    return VerticalLayout.builder().style("width: 100%; gap: .5rem;").content(contenido).build();
-  }
-
-  private static Component campo(String id, String label, FieldDataType type) {
-    return FormField.builder().id(id).label(label).dataType(type).style("width: 100%; max-width: 28rem;").build();
   }
 
   /** Preferencias, última estancia, quejas pendientes e historial del huésped principal. */
@@ -215,8 +177,6 @@ final class HuespedesPanel {
       // la descripción del acompañante ya incluye su documento
       contenido.add(Text.builder().text(companion.description()).size(TextSize.xs).noMargins(true).build());
     }
-    // quién es cada huésped en la cadena (en casa también se puede confirmar)
-    contenido.add(cliente(stay));
     contenido.add(Text.builder().text("Salida").container(TextContainer.h3).style("margin: 0;").build());
     contenido.add(Text.builder().text(EstanciaPanel.salida(stay, view.folio())).noMargins(true).build());
     contenido.add(Text.builder().text(stay.nights() + " noches · " + stay.board())
@@ -225,28 +185,19 @@ final class HuespedesPanel {
   }
 
   /**
-   * El formulario del cardex del huésped seleccionado, a mano (documento/nombre/contacto) —
-   * contenido del DRAWER que abre "Editar"/"A mano"; el título viaja en el header del drawer.
+   * Encima del kárdex del titular en el drawer: cada campo que recepción cambió y cómo lo tiene Salesforce
+   * (pendiente, o rechazado con su motivo); nada para un acompañante o sin cambios.
    */
-  Component formularioPax() {
-    var campos = new ArrayList<Component>();
-    // el titular: encima de los campos, cada campo que recepción cambió y cómo lo tiene
-    // Salesforce (pendiente, o rechazado con su motivo)
-    if (r.paxSeleccionado <= 1) {
-      var guest = r.view().guest();
-      r.kardex.changeOf(guest.id())
-          .filter(KardexChange::marked)
-          .ifPresent(kardex -> campos.add(StatusList.builder()
-              .items(camposEnSalesforce(kardex, guest)).compact(true).frameless(true)
-              .style("width: 100%;").build()));
+  java.util.Optional<Component> cambiosEnSalesforce() {
+    if (r.paxSeleccionado > 1) {
+      return java.util.Optional.empty();
     }
-    campos.add(campoPax("paxDocumento", "Documento"));
-    campos.add(campoPax("paxNombre", "Nombre"));
-    campos.add(campoPax("paxEmail", "Email"));
-    campos.add(campoPax("paxTelefono", "Teléfono"));
-    campos.add(Button.builder().label("Guardar kárdex").actionId("guardarPax")
-        .buttonStyle(io.mateu.uidl.data.ButtonStyle.primary).build());
-    return VerticalLayout.builder().content(campos).style("width: 100%; gap: .5rem;").build();
+    var guest = r.view().guest();
+    return r.kardex.changeOf(guest.id())
+        .filter(KardexChange::marked)
+        .map(kardex -> StatusList.builder()
+            .items(camposEnSalesforce(kardex, guest)).compact(true).frameless(true)
+            .style("width: 100%;").build());
   }
 
   /** Un item por campo cambiado: el dato, y su estado en Salesforce. */
@@ -265,14 +216,6 @@ final class HuespedesPanel {
         .toList();
   }
 
-  private static Component campoPax(String id, String label) {
-    return FormField.builder()
-        .id(id)
-        .label(label)
-        .dataType(FieldDataType.string)
-        .style("width: 100%; max-width: 28rem;")
-        .build();
-  }
 
   static StatusItem paxItem(int pax, String title, String description, boolean complete, boolean noShow) {
     // también con la identidad verificada: el recepcionista puede querer volver a escanear

@@ -34,7 +34,7 @@ public class AvisosStep implements WizardStep, VisibilitySupplier {
   @Hidden String fingerprint;
 
   @Label("")
-  Callable<Component> header = () -> GuestHeaders.arrivalHeader(stayId);
+  Callable<Component> header = () -> GuestHeaders.checkInHeader(stayId);
 
   @Label("")
   Callable<Component> avisos = () -> {
@@ -63,5 +63,12 @@ public class AvisosStep implements WizardStep, VisibilitySupplier {
           || FrontOffice.checkInNoticesRead(stayId);
     }
     return false;
+  }
+
+  /** Back to the reservation's page — in the wizard's buttons, with Atrás and Siguiente. */
+  @io.mateu.uidl.annotations.Toolbar(buttonStyle = io.mateu.uidl.data.ButtonStyle.tertiary)
+  @io.mateu.uidl.annotations.Label("Volver a la reserva")
+  public Object volverReserva() {
+    return java.net.URI.create("/reservas/" + stayId);
   }
 }

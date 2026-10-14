@@ -49,11 +49,18 @@ final class LlegadaPanel {
   record Op(
       String id, String icon, String title, String pendiente, String hecha,
       boolean done, String actionLabel, String actionId, String actionIcon,
-      String actionLabel2, String actionId2, String actionIcon2) {
+      String actionLabel2, String actionId2, String actionIcon2, String status, String statusColor) {
 
     Op(String id, String icon, String title, String pendiente, String hecha,
        boolean done, String actionLabel, String actionId, String actionIcon) {
-      this(id, icon, title, pendiente, hecha, done, actionLabel, actionId, actionIcon, null, null, null);
+      this(id, icon, title, pendiente, hecha, done, actionLabel, actionId, actionIcon, null, null, null, null, null);
+    }
+
+    Op(String id, String icon, String title, String pendiente, String hecha,
+       boolean done, String actionLabel, String actionId, String actionIcon,
+       String actionLabel2, String actionId2, String actionIcon2) {
+      this(id, icon, title, pendiente, hecha, done, actionLabel, actionId, actionIcon, actionLabel2, actionId2,
+          actionIcon2, null, null);
     }
   }
 
@@ -71,7 +78,7 @@ final class LlegadaPanel {
 
   /** The operations the check-in wizard does itself; the others are done only on their card here. */
   static final java.util.Set<String> EN_EL_WIZARD =
-      java.util.Set.of("documentos", "habitacion", "firma", "cobro", "llave", "extras");
+      java.util.Set.of("documentos", "habitacion", "firma", "cobro", "llave", "extras", "wifi");
 
   /** Where «check-in» goes: straight in, to the wizard, or back to a card the wizard has not got. */
   enum Siguiente { DIRECTO, WIZARD, TARJETA }
@@ -113,7 +120,8 @@ final class LlegadaPanel {
             stay.roomType() + " asignada · " + listaEnOpera(stay),
             habitacionLista, "Cambiar", "opHabitacion", "vaadin:exchange",
             // preguntar otra vez a Opera si está lista: en la tarjeta, que es donde se dice
-            habitacionLista ? "Comprobar" : null, habitacionLista ? "comprobarHabitacion" : null, "vaadin:refresh"),
+            habitacionLista ? "Comprobar" : null, habitacionLista ? "comprobarHabitacion" : null, "vaadin:refresh",
+            estadoHabitacion(stay)[0], estadoHabitacion(stay)[1]),
         new Op("wifi", "📶", "Tarjeta wifi",
             "Crear las credenciales de acceso del huésped",
             "Credenciales creadas y entregadas",
@@ -150,36 +158,20 @@ final class LlegadaPanel {
   }
 
   /**
-   * El aviso de una habitación asignada que Opera no da por lista (libre e inspeccionada, lo que XMAR
-   * exige para asignarla), o de la que aún no ha dicho nada — con «Comprobar» dentro para preguntarlo
-   * otra vez. Lista, no es un aviso: la tarjeta de la habitación ya lo dice, y lleva su «Comprobar».
-   * Vacío también sin habitación asignada.
+   * El badge de la tarjeta de la habitación asignada, según Opera: «No lista» en rojo si no la da por
+   * lista (libre e inspeccionada, lo que XMAR exige para asignarla), «Sin confirmar» si aún no ha dicho
+   * nada; lista, o sin habitación, el de siempre (null). El porqué va en la descripción de la tarjeta, y
+   * «Comprobar» en su acción: sin aviso aparte encima de las operaciones.
    */
-  Component habitacionLista(Stay stay) {
+  static String[] estadoHabitacion(Stay stay) {
     if (!stay.hasRoom()) {
-      return new VerticalLayout();
+      return new String[] {null, null};
     }
     var readiness = io.mateu.ecdemo1.frontoffice.ui.common.FrontOffice.roomReadiness(stay.roomNumber());
-    if (readiness.known() && readiness.ready()) {
-      return new VerticalLayout();
+    if (!readiness.known()) {
+      return new String[] {"Sin confirmar", "warning"};
     }
-    var texto = !readiness.known()
-        ? "Habitación " + stay.roomNumber() + ": Opera no ha dicho aún si está lista — " + readiness.reason()
-        : "Habitación " + stay.roomNumber() + " aún no lista — " + readiness.reason()
-                + (readiness.state() == null ? "" : " (" + readiness.state() + ")")
-                + ". Opera puede rechazar el check-in hasta que lo esté; o cambia de habitación.";
-    // «Comprobar» va dentro del aviso, como su contenido en la misma línea: Redwood pinta los botones
-    // del contenido de un Notice dentro de él, y el web los pone junto al texto (inlineContent). La
-    // acción propia del Notice (actionLabel) no la pinta Redwood; un botón suelto al lado se salía del
-    // aviso y pisaba la primera fila de tarjetas.
-    return io.mateu.uidl.data.Notice.builder()
-        .theme(readiness.known() ? "warning" : "info")
-        .text(texto)
-        .slim(true)
-        .inlineContent(true)
-        .content(List.of(Button.builder().label("Comprobar").actionId("comprobarHabitacion").build()))
-        .style("width: 100%;")
-        .build();
+    return readiness.ready() ? new String[] {null, null} : new String[] {"No lista", "error"};
   }
 
   /**
@@ -230,8 +222,8 @@ final class LlegadaPanel {
                       .avatar(op.icon())
                       .title(op.title())
                       .description(op.done() ? op.hecha() : op.pendiente())
-                      .status(op.done() ? "✓ Hecha" : "Pendiente")
-                      .statusColor(op.done() ? "success" : "warning")
+                      .status(op.status() != null ? op.status() : op.done() ? "✓ Hecha" : "Pendiente")
+                      .statusColor(op.statusColor() != null ? op.statusColor() : op.done() ? "success" : "warning")
                       .actionLabel(conAccion ? op.actionLabel() : null)
                       .actionId(conAccion ? op.actionId() : null)
                       .actionIcon(conAccion ? op.actionIcon() : null)
@@ -243,7 +235,7 @@ final class LlegadaPanel {
                 .toList())
             .build();
     return VerticalLayout.builder()
-        .content(List.of(avisosDeLaReserva(stay), habitacionLista(stay), checklist))
+        .content(List.of(avisosDeLaReserva(stay), checklist))
         .style("width: 100%; gap: .5rem;")
         .build();
   }

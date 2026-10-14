@@ -59,6 +59,22 @@ class FrontOfficeProducedContractsTest {
     }
 
     @Test
+    void theCompanyTheDeskSetForThePmsIsWhatTheSchemaSays() {
+        var walkIns = mock(WalkIns.class);
+        when(walkIns.of("12E45")).thenReturn(Optional.empty());
+        var links = mock(io.mateu.ecdemo1.frontoffice.infra.pms.PmsLinks.class);
+        when(links.ofStay("12E45")).thenReturn(Optional.of(new io.mateu.ecdemo1.frontoffice.infra.pms.PmsLinks.Link(
+                "12E45", "39486034", "2026-09-29T10:00:00")));
+
+        reports(walkIns, links).companyChanged("12E45", "ACME", "Acme Corporation Ltd", "ana");
+
+        var json = written(CommandOutbox.FRONT_OFFICE_EVENTS);
+        Contracts.topic("front-office-events").assertValid(json);
+        org.assertj.core.api.Assertions.assertThat(json).contains("\"type\":\"company-changed\"")
+                .contains("\"companyCode\":\"ACME\"").contains("\"pmsReservationId\":\"39486034\"");
+    }
+
+    @Test
     void aChargeOfTheDeskForThePmsFolioIsWhatTheSchemaSays() {
         var walkIns = mock(WalkIns.class);
         when(walkIns.of("12E45")).thenReturn(Optional.empty());

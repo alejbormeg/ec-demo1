@@ -45,7 +45,7 @@ spec:
             capabilities: { drop: ["ALL"] }
       containers:
         - name: communication-service
-          image: miguelperezcolom/ec-demo1-communication-service:0.64.2
+          image: miguelperezcolom/ec-demo1-communication-service:0.73.0
           env:
             # Traces to Tempo, the one the engine exports to: a booking's trace runs from the CRS through
             # this service and the orchestrator (docs: deploy/observability, "Trazas de una reserva").

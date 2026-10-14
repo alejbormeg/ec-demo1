@@ -463,6 +463,20 @@ class FrontOfficeIntegrationsTest {
         assertThat(reception.on(new io.mateu.ecdemo1.integration.model.frontoffice.FrontOfficeEvent.PaymentRefunded("E-8", at,
                 "MRU01", "GSX4AK", "GSX4AK", "XMAR", "39486034", "P-1", "DEPOSIT", "CASH",
                 new java.math.BigDecimal("100.00"), "MUR", null, "ana"))).isEqualTo("devolver-cobro:MRU01/GSX4AK:P-1");
+        // The company billed: each change its own process — set, and taken away.
+        assertThat(reception.on(new io.mateu.ecdemo1.integration.model.frontoffice.FrontOfficeEvent.CompanyChanged("E-9", at,
+                "MRU01", "GSX4AK", "GSX4AK", "XMAR", "39486034", "ACME", "Acme Corporation Ltd", "ana")))
+                .isEqualTo("asignar-empresa:MRU01/GSX4AK:E-9");
+        assertThat(outbox("outboxUpstream")).filteredOn(p -> p.contains("asignar-empresa:MRU01/GSX4AK:E-9"))
+                .singleElement().satisfies(p -> assertThat(p)
+                        .contains("\"workflowDefinitionId\":\"asignar-empresa\"")
+                        .contains("{\"name\":\"companyCode\",\"value\":\"ACME\"}")
+                        .contains("{\"name\":\"companyName\",\"value\":\"Acme Corporation Ltd\"}"));
+        assertThat(reception.on(new io.mateu.ecdemo1.integration.model.frontoffice.FrontOfficeEvent.CompanyChanged("E-10", at,
+                "MRU01", "GSX4AK", "GSX4AK", "XMAR", "39486034", null, null, "ana")))
+                .isEqualTo("asignar-empresa:MRU01/GSX4AK:E-10");
+        assertThat(outbox("outboxUpstream")).filteredOn(p -> p.contains("asignar-empresa:MRU01/GSX4AK:E-10"))
+                .singleElement().satisfies(p -> assertThat(p).doesNotContain("companyCode"));
         // A walk-in neither the CRS nor Opera has yet: nothing to record now.
         assertThat(reception.on(new io.mateu.ecdemo1.integration.model.frontoffice.FrontOfficeEvent.GuestCheckedIn("E-4", at,
                 "MRU01", "FO-6XDAWR", null, "XMAR", null, "205", 1, "ana"))).isNull();

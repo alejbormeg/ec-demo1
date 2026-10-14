@@ -8,6 +8,9 @@ import org.springframework.data.repository.query.Param;
 
 public interface PartnerProfileRepository extends JpaRepository<PartnerProfile, String> {
 
+    /** The partner a PMS profile is — the reverse of the equivalence. */
+    java.util.Optional<PartnerProfile> findFirstByPmsProfileId(String pmsProfileId);
+
     /** {@code pattern} is a lower-case LIKE pattern escaped with '\'. */
     @Query(value = """
             select p from PartnerProfile p

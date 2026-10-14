@@ -116,3 +116,12 @@ consola de control, no en el despliegue. Ver [Entorno local](/desarrollo/entorno
   por API (actualizar en su sitio, leyendo el perfil con `fetchInstructions=Communication`); buscar un
   perfil por referencia externa que no existe devuelve 204, no 404. Ver
   [Del CRS a Opera](/integracion/crs-a-opera/).
+
+**El enrutado de la empresa a la ventana 2 no se ve en Opera (XMAR).** `PUT
+/csh/v1/hotels/XMAR/reservations/{id}/routingInstructions/create` con la empresa como pagador, del día de
+llegada al de salida y con los códigos 1100, 1137 y 1138, responde 200 `{}`. Pero `GET …/routingInstructions`
+(con `includeWindowRouting=true`) sigue devolviendo la lista vacía (13-10-2026, reserva de prueba 39482155).
+El perfil *Company* sí queda en la reserva, y quitarlo funciona. El `routingInstructions` que
+`ReservationPayload` manda al crear una reserva de un partner `NO_FRONT` tampoco se aplica: el PUT de `rsv`
+lo acepta y lo ignora, y además usa los códigos `ROOM` y `PACKAGE`, que en XMAR no existen
+(`OPERAWS-FOF01559`). Falta comprobar en Opera qué configuración necesita el enrutado por ventanas.

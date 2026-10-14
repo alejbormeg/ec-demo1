@@ -24,6 +24,16 @@ public final class GuestHeaders {
 
   /** The arriving guest's banner, shown as the first component of every check-in wizard step. */
   public static Component arrivalHeader(String stayId) {
+    return arrivalHeader(stayId, false);
+  }
+
+  /** The check-in's banner: the arrival's (the way back to the reservation is in the wizard's buttons). */
+  public static Component checkInHeader(String stayId) {
+    return arrivalHeader(stayId, false);
+  }
+
+  /** The same; {@code companyEditable}: EMPRESA carries the button that chooses or corrects it (opEmpresa). */
+  public static Component arrivalHeader(String stayId, boolean companyEditable) {
     var view = FrontOffice.stayView(stayId);
     var stay = view.stay();
     var guest = view.guest();
@@ -31,11 +41,18 @@ public final class GuestHeaders {
     var badges = new ArrayList<Chip>();
     badges.add(Tiers.chip(tier(guest, known)));
     walkIn(stay).ifPresent(badges::add);
+    if (companyEditable) {
+      // Redwood's page header shows four facts, the metric among them: with the reservation page's four
+      // (the amount, AGENCIA, EMPRESA, CHECK-IN) the points ride with the tier, after the subtitle
+      badges.add(Chip.builder().label(points(guest, known) + " puntos").color("contrast").build());
+    }
     return EntityHeader.builder()
         .title(FrontOffice.withFlag(stayId, 1, guest.id(), guest.name()))
         .badges(badges)
         .subtitle(staySubtitle(stay))
-        .facts(totalFacts(stay.total(), FrontOffice.agreedPrice(stayId).orElse(null), stay.agency()))
+        .facts(totalFacts(stay.total(), FrontOffice.agreedPrice(stayId).orElse(null), stay.agency(),
+            FrontOffice.company(stayId).orElse(null), companyEditable,
+            companyEditable ? (FrontOffice.ops(stayId).firma() ? "Registro firmado" : "Sin firmar") : null))
         .metricLabel("FIDELIDAD")
         .metricValue(points(guest, known))
         .metricCaption(staysCaption(guest, known))
@@ -51,18 +68,62 @@ public final class GuestHeaders {
    * how much Opera's goes over.
    */
   static List<Fact> totalFacts(BigDecimal total, BigDecimal agreed, String agency) {
+    return totalFacts(total, agreed, agency, null, false);
+  }
+
+  static List<Fact> totalFacts(BigDecimal total, BigDecimal agreed, String agency, String company) {
+    return totalFacts(total, agreed, agency, company, false);
+  }
+
+  /** The same, and the company billed when neither the agency nor the guest is — «—» without one. */
+  static List<Fact> totalFacts(BigDecimal total, BigDecimal agreed, String agency, String company,
+                               boolean companyEditable) {
+    return totalFacts(total, agreed, agency, company, companyEditable, null);
+  }
+
+  /**
+   * The same, for the reservation's page ({@code actions}): the amount carries the till's button
+   * (abrirCaja), EMPRESA the company's (opEmpresa), and CHECK-IN — {@code checkIn}, the registration's
+   * state; null: no such fact — the lobby tablet's (enviarTableta). Four facts at most, as Redwood's page
+   * header shows no more: the CRS's price and Opera's go in one when they differ.
+   */
+  static List<Fact> totalFacts(BigDecimal total, BigDecimal agreed, String agency, String company,
+                               boolean actions, String checkIn) {
     var facts = new ArrayList<Fact>();
+    Fact.FactBuilder amount;
     if (agreed == null || total == null || agreed.compareTo(total) == 0) {
-      facts.add(Fact.builder().label("TOTAL RESERVA").value(euros(total)).build());
+      amount = Fact.builder().label("TOTAL RESERVA").value(euros(total));
     } else {
       var over = total.subtract(agreed);
-      facts.add(Fact.builder().label("PRECIO CRS").value(euros(agreed)).build());
-      facts.add(Fact.builder().label("TOTAL OPERA")
-          .value(euros(total) + " (" + (over.signum() > 0 ? "+" : "−") + euros(over.abs()) + " paquetes de Opera)")
-          .build());
+      amount = Fact.builder().label("PRECIO CRS / OPERA").value(euros(agreed) + " / " + euros(total) + " ("
+          + (over.signum() > 0 ? "+" : "−") + euros(over.abs()) + " paquetes de Opera)");
     }
+    if (actions) {
+      amount.actionId("abrirCaja").icon("vaadin:money").actionLabel("Caja");
+    }
+    facts.add(amount.build());
     facts.add(Fact.builder().label("AGENCIA").value(agency).build());
+    facts.add(companyFact(company, actions));
+    if (checkIn != null) {
+      var fact = Fact.builder().label("CHECK-IN").value(checkIn);
+      if (actions) {
+        // Oracle's own tablet icon: Redwood takes oj-ux-ico-* as they come (Mateu maps no vaadin:tablet)
+        fact.actionId("enviarTableta").icon("oj-ux-ico-tablet-portrait").actionLabel("Check-in en tableta");
+      }
+      facts.add(fact.build());
+    }
     return facts;
+  }
+
+
+  /** EMPRESA, «—» without one; {@code editable}: with the ✎ that opens its drawer (opEmpresa). */
+  static Fact companyFact(String company, boolean editable) {
+    var fact = Fact.builder().label("EMPRESA").value(company == null || company.isBlank() ? "—" : company);
+    if (editable) {
+      fact.actionId("opEmpresa").actionLabel(company == null || company.isBlank() ? "Elegir la empresa"
+          : "Cambiar o corregir la empresa");
+    }
+    return fact.build();
   }
 
   /** The departing guest's banner at check-out. */
@@ -83,6 +144,10 @@ public final class GuestHeaders {
 
   /** The in-house guest's 360 banner. */
   public static Component inHouseHeader(String stayId) {
+    return inHouseHeader(stayId, false);
+  }
+
+  public static Component inHouseHeader(String stayId, boolean companyEditable) {
     var view = FrontOffice.stayView(stayId);
     var stay = view.stay();
     var guest = view.guest();
@@ -105,11 +170,15 @@ public final class GuestHeaders {
                 + stay.checkOut().format(DAY) + " · " + stay.board())
         .facts(
             List.of(
-                Fact.builder().label("BALANCE").value(euros(balance(folio))).build(),
+                companyEditable
+                    ? Fact.builder().label("BALANCE").value(euros(balance(folio)))
+                        .actionId("abrirCaja").icon("vaadin:money").actionLabel("Caja").build()
+                    : Fact.builder().label("BALANCE").value(euros(balance(folio))).build(),
                 Fact.builder()
                     .label("PREAUTORIZADO")
                     .value(euros(folio == null ? null : folio.preauthorized()))
-                    .build()))
+                    .build(),
+                companyFact(FrontOffice.company(stayId).orElse(null), companyEditable)))
         .metricLabel("FIDELIDAD")
         .metricValue(points(guest, known))
         .metricCaption(staysCaption(guest, known))

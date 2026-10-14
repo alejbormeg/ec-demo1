@@ -146,6 +146,19 @@ public class IntegrationClients {
         }
     }
 
+    /**
+     * The partner (its code) a PMS profile is, as the mapping recorded it when it projected the partner;
+     * empty when no partner is — or the mapping does not answer: the stay goes without the code.
+     */
+    public Optional<String> partnerOfProfile(String pmsProfileId) {
+        try {
+            return Optional.ofNullable(mapping.get().uri("/partner-profiles?pmsProfileId={id}", pmsProfileId).retrieve()
+                    .body(PartnerProfile.class)).map(PartnerProfile::partnerCode);
+        } catch (RuntimeException e) {
+            return Optional.empty();
+        }
+    }
+
     public void await(String processKey, String definitionId, String hotelCode, String subject, List<Variable> variables,
                       List<Cause> causes) {
         mapping.post().uri("/causes/wait")

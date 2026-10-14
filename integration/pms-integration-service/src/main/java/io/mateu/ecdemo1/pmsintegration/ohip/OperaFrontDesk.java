@@ -330,6 +330,75 @@ public class OperaFrontDesk {
         ohip.put(hotelId, "/rsv/v1/hotels/{h}/reservations/{id}", change, hotelId, reservationId);
     }
 
+    // ── the company billed (pms-fo, asignar-empresa) ───────────────────────────────────────────────
+
+    /** The Opera profile of the company on the reservation, if it has one. */
+    public static Optional<String> companyProfileId(JsonNode reservation) {
+        for (var p : reservation.path("reservationProfiles").path("reservationProfile")) {
+            if ("Company".equals(p.path("reservationProfileType").asText(""))) {
+                for (var ref : p.path("profileIdList")) {
+                    if ("Profile".equals(ref.path("type").asText("")) && !ref.path("id").asText("").isBlank()) {
+                        return Optional.of(ref.path("id").asText());
+                    }
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * The company's profile on the reservation, alone in the change — it takes the place of the one
+     * there was, if any —, and what the stay costs routed to it: folio window 2 with the company as
+     * payee for the accommodation and board's transaction codes ({@code routingCodes}), from arrival to
+     * departure. The routing is the cashiering API's (rsv's PUT takes routingInstructions and drops them).
+     */
+    public void attachCompany(String hotelId, String reservationId, String profileId, java.time.LocalDate arrival,
+                              java.time.LocalDate departure, List<String> routingCodes) {
+        var change = objectMapper.createObjectNode();
+        ObjectNode reservation = change.putArray("reservations").addObject();
+        reservation.putArray("reservationIdList").addObject().put("id", reservationId).put("type", "Reservation");
+        reservation.put("hotelId", hotelId);
+        reservation.putObject("reservationProfiles").putArray("reservationProfile").addObject()
+                .put("reservationProfileType", "Company")
+                .putArray("profileIdList").addObject().put("id", profileId).put("type", "Profile");
+        ohip.put(hotelId, "/rsv/v1/hotels/{h}/reservations/{id}", change, hotelId, reservationId);
+        if (routingCodes == null || routingCodes.isEmpty() || arrival == null || departure == null) {
+            return;
+        }
+        var routing = objectMapper.createObjectNode();
+        var criteria = routing.putObject("criteria");
+        criteria.put("hotelId", hotelId);
+        criteria.putObject("reservationId").put("id", reservationId).put("type", "Reservation");
+        var folio = criteria.putObject("folio");
+        folio.put("folioWindowNo", 2);
+        folio.putObject("payeeInfo").putObject("payeeId").put("id", profileId).put("type", "Profile");
+        var instruction = folio.putArray("instructions").addObject();
+        instruction.putObject("duration").put("daily", true).putObject("timeSpan")
+                .put("startDate", arrival.toString()).put("endDate", departure.toString());
+        var codes = instruction.putArray("transactionCodes");
+        routingCodes.forEach(code -> codes.addObject().put("transactionCode", code));
+        ohip.put(hotelId, "/csh/v1/hotels/{h}/reservations/{id}/routingInstructions/create", routing, hotelId, reservationId);
+    }
+
+    /**
+     * No company on the reservation: its Company profile detached, and the routing to it taken away —
+     * only the company's: a paying agency routes to window 2 too.
+     */
+    public void detachCompany(String hotelId, String reservationId, String companyProfileId) {
+        if (companyProfileId != null) {
+            ohip.delete(hotelId, "/csh/v1/hotels/{h}/reservations/{id}/routingInstructions/folio?folioWindowNo=2&payeeId={p}",
+                    hotelId, reservationId, companyProfileId);
+        }
+        var change = objectMapper.createObjectNode();
+        ObjectNode reservation = change.putArray("reservations").addObject();
+        reservation.putArray("reservationIdList").addObject().put("id", reservationId).put("type", "Reservation");
+        reservation.put("hotelId", hotelId);
+        // a Company entry without a profile: OHIP takes it as «no company» (validated on XMAR, 2026-10-13)
+        reservation.putObject("reservationProfiles").putArray("reservationProfile").addObject()
+                .put("reservationProfileType", "Company");
+        ohip.put(hotelId, "/rsv/v1/hotels/{h}/reservations/{id}", change, hotelId, reservationId);
+    }
+
     // ── the folio: the desk's charges (pms-fo, registrar-cargo / anular-cargo) ─────────────────────
 
     /** A posting on the reservation's folio, as Opera lists it. */

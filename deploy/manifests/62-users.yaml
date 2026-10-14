@@ -42,7 +42,7 @@ spec:
             capabilities: { drop: ["ALL"] }
       containers:
         - name: users
-          image: miguelperezcolom/ec-demo1-users:0.64.2
+          image: miguelperezcolom/ec-demo1-users:0.73.0
           env:
             - name: SERVER_PORT
               value: "8102"

@@ -50,6 +50,22 @@ responde con el código de error del protocolo.
 - `/a2a/**` **no se expone**: el gateway devuelve 404 en todos los hosts públicos. Solo se llama de pod a
   pod.
 
+### Desde fuera del clúster: `deploy/demo/a2a.py`
+
+Un cliente más del plano de control, como Claude Code, habla con los agentes por A2A con
+`deploy/demo/a2a.py`. Abre un `kubectl port-forward` a `ia-agent` (`/a2a/**` no se expone), pide a
+Keycloak el token del usuario demo y manda `message/send`:
+
+```bash
+deploy/demo/a2a.py card mapping-agent
+deploy/demo/a2a.py ask mapping-agent "¿Cuántos códigos pendientes tiene MRU01?"
+deploy/demo/a2a.py ask console-agent "…" --context <contextId de la respuesta anterior>
+```
+
+El agente contesta con su LLM, sus MCP, su RAG y sus pares, gasta contra los presupuestos del usuario y
+queda en el log de `ia-agent` como cualquier llamada A2A. Por defecto apunta al clúster local
+(`deploy/local`); `A2A_URL`, `KEYCLOAK_URL` y `KUBECONFIG` lo cambian.
+
 ## Guardarraíles en una ruta
 
 Una ruta puede poner agentes alrededor del agente que elige: los de **entrada** leen el texto del

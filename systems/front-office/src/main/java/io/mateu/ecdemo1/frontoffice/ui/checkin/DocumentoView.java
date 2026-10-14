@@ -157,65 +157,67 @@ public class DocumentoView extends EditableView<Object, DocumentoView.DocumentoE
   }
 
   /**
-   * Editor: identity, contact and the registration data the destination's rules ask for — the fields
-   * they require are marked required for this pax's nationality and age ({@link #isRequired}), and the
-   * legal basis is said above them.
+   * Editor: the pax's whole kárdex, in the order the desk asks for it — identity, contact, the
+   * registration data the destination's rules ask for and the desk's own data. The fields the rules
+   * require are marked required for this pax's nationality and age ({@link #isRequired}), and the legal
+   * basis is said above them; the issuing country and the responsible adult only show when a rule asks
+   * for them. Saved with a Riu Class number or an email it confirms who the pax is, and with name and
+   * birth date it looks for who they may be ({@link #reconocer}).
    */
   @Getter
   @Setter
   @Title("Documento")
   @SubscribeTo(event = "pax-seleccionado", action = "cambiarPax")
-  public static class DocumentoEditor implements io.mateu.uidl.interfaces.RequiredSupplier {
+  public static class DocumentoEditor implements io.mateu.uidl.interfaces.RequiredSupplier,
+      io.mateu.uidl.interfaces.VisibilitySupplier {
+    @Section(value = "", columns = 4, frameless = true)
+    @io.mateu.uidl.annotations.Colspan(4)
     @io.mateu.uidl.annotations.Notice(theme = "info")
-    String baseLegal;
-
-    @Label("Documento")
-    String documento;
-
-    @Label("Nombre")
-    String nombre;
+    String baseLegal = "";
 
     @Label("Apellidos")
     String apellidos;
 
+    @Label("Nombre")
+    String nombre;
+
     @Label("Email")
     String email;
 
-    @Label("Teléfono")
-    String telefono;
-
-    @Label("Fax")
-    String fax;
-
-    @Section("Registro de viajeros")
-    @Label("Tipo de documento")
-    String tipoDocumento;
-
-    @Label("País de expedición")
-    String paisExpedicion;
-
-    @Label("Fecha de expedición")
-    java.time.LocalDate fechaExpedicion;
-
-    @Label("Caducidad del documento")
-    java.time.LocalDate caducidad;
-
-    @Label("Nacionalidad")
-    String nacionalidad;
+    @Label("Nº Riu Class")
+    String riuClass;
 
     @Label("Fecha de nacimiento")
     java.time.LocalDate fechaNacimiento;
 
-    @Label("Lugar de nacimiento")
-    String lugarNacimiento;
-
     @Label("Sexo")
     String sexo;
+
+    @Label("Documento")
+    String documento;
+
+    @Label("Tipo de documento")
+    String tipoDocumento;
+
+    @Label("Caducidad")
+    java.time.LocalDate caducidad;
+
+    @Label("Expedición")
+    java.time.LocalDate fechaExpedicion;
+
+    @Label("País de expedición")
+    String paisExpedicion;
+
+    @Label("Nacionalidad")
+    String nacionalidad;
+
+    @Label("Idioma")
+    String idioma;
 
     @Label("Dirección")
     String direccion;
 
-    @Label("Ciudad")
+    @Label("Población")
     String ciudad;
 
     @Label("Código postal")
@@ -224,18 +226,30 @@ public class DocumentoView extends EditableView<Object, DocumentoView.DocumentoE
     @Label("Provincia")
     String provincia;
 
+    @Label("Ciudad de nacimiento")
+    String lugarNacimiento;
+
     @Label("País de residencia")
     String paisResidencia;
+
+    @Label("Teléfono")
+    String telefono;
+
+    @Label("Fax")
+    String fax;
 
     @Label("Adulto responsable y parentesco")
     String tutor;
 
-    @Section("Kárdex")
-    @Label("Idioma")
-    String idioma;
+    /** Pax 2..N: what the kárdex sends the MDM as a companion. */
+    @io.mateu.uidl.annotations.ReadOnly
+    @Label("Es acompañante")
+    boolean acompanante;
 
-    @Label("Nº Riu Class")
-    String riuClass;
+    /** Until the desk saves the kárdex with the guest, it is the reservation's provisional one. */
+    @io.mateu.uidl.annotations.ReadOnly
+    @Label("Es cárdex provisional")
+    boolean cardexProvisional;
 
     @Label("Acepta publicidad")
     Boolean aceptaPublicidad;
@@ -247,6 +261,12 @@ public class DocumentoView extends EditableView<Object, DocumentoView.DocumentoE
     public boolean isRequired(String fieldName, HttpRequest httpRequest) {
       var field = FIELDS.get(fieldName);
       return field != null && requeridos != null && java.util.Arrays.asList(requeridos.split(",")).contains(field.name());
+    }
+
+    /** The issuing country and the responsible adult are registration data only some rules ask for. */
+    @Override
+    public boolean isHidden(String fieldName, HttpRequest httpRequest) {
+      return ("paisExpedicion".equals(fieldName) || "tutor".equals(fieldName)) && !isRequired(fieldName, httpRequest);
     }
   }
 
@@ -356,6 +376,8 @@ public class DocumentoView extends EditableView<Object, DocumentoView.DocumentoE
         .orElse(scanned != null && !blank(scanned.firstName()) ? scanned.firstName() : parts[0]));
     editor.setApellidos(k.map(PaxKardexes.PaxKardex::lastName).filter(v -> !blank(v))
         .orElse(scanned != null && !blank(scanned.lastName()) ? scanned.lastName() : parts[1]));
+    editor.setAcompanante(paxIndex() > 1);
+    editor.setCardexProvisional(k.isEmpty());
     k.ifPresent(x -> {
       editor.setRiuClass(x.riuClass());
       editor.setFechaExpedicion(x.documentIssueDate());
@@ -381,7 +403,7 @@ public class DocumentoView extends EditableView<Object, DocumentoView.DocumentoE
       editor.setTutor(values.get(Field.GUARDIAN));
       var result = registration.required(stay, paxIndex(), Moment.CHECK_IN);
       editor.setRequeridos(String.join(",", result.fields().stream().map(Enum::name).toList()));
-      editor.setBaseLegal(result.fields().isEmpty() ? null
+      editor.setBaseLegal(result.fields().isEmpty() ? ""
           : "Datos obligatorios para el registro de este huésped"
               + (result.legalBases().isEmpty() ? "" : " — " + String.join("; ", result.legalBases())));
     }
@@ -435,12 +457,50 @@ public class DocumentoView extends EditableView<Object, DocumentoView.DocumentoE
     if (stayId == null || stayId.isBlank()) {
       return;
     }
+    persist(edited);
+  }
+
+  /** The kárdex of a pax as the editor shows it, from a fresh island (a prototype bean, asked of Mateu's provider). */
+  public static DocumentoEditor forPax(String stayId, int pax) {
+    return io.mateu.uidl.di.MateuBeanProvider.getBean(DocumentoView.class).kardexOf(stayId, pax);
+  }
+
+  /** «Klaus Hoffmann» from nombre and apellidos; null with neither. */
+  public static String nombreCompleto(String nombre, String apellidos) {
+    var full = ((nombre == null ? "" : nombre.trim()) + " " + (apellidos == null ? "" : apellidos.trim())).trim();
+    return full.isEmpty() ? null : full;
+  }
+
+  /** The kárdex of a pax as the editor shows it — for another screen's form (the reservation's drawer). */
+  public DocumentoEditor kardexOf(String stayId, int pax) {
+    this.stayId = stayId;
+    this.paxIndex = pax;
+    return editor(null);
+  }
+
+  /**
+   * Saves a pax's kárdex edited in another screen's form (the reservation's drawer) as this editor saves
+   * it, and recognises the pax from it ({@link #reconocer}): what to tell the desk, or null.
+   */
+  public String saveKardex(String stayId, int pax, DocumentoEditor edited) {
+    this.stayId = stayId;
+    this.paxIndex = pax;
+    var riuClassAntes = kardexOf().map(PaxKardexes.PaxKardex::riuClass).orElse(null);
+    var emailAntes = pax().email();
+    persist(edited);
+    return reconocer(edited, riuClassAntes, emailAntes);
+  }
+
+  void persist(DocumentoEditor edited) {
     var name = String.join(" ", java.util.stream.Stream.of(edited.getNombre(), edited.getApellidos())
         .filter(v -> !blank(v)).map(String::trim).toList());
-    if (pax().complete()) {
-      kardex.contactUpdated(stayId, paxIndex(), edited.getEmail(), edited.getTelefono());
-    } else {
+    var pax = pax();
+    // a complete pax whose document or name the desk corrected is registered again (the change goes to
+    // the master); else only their contact changes
+    if (!pax.complete() || changed(pax.document(), edited.getDocumento()) || changed(pax.name(), name)) {
       kardex.registered(stayId, paxIndex(), edited.getDocumento(), name, edited.getEmail(), edited.getTelefono());
+    } else {
+      kardex.contactUpdated(stayId, paxIndex(), edited.getEmail(), edited.getTelefono());
     }
     kardex.registrationData(stayId, paxIndex(), registrationData(edited));
     kardex.kardexFilled(stayId, paxIndex(), new PaxKardexes.PaxKardex(stayId, paxIndex(), trim(edited.getNombre()),
@@ -448,6 +508,41 @@ public class DocumentoView extends EditableView<Object, DocumentoView.DocumentoE
         blank(edited.getIdioma()) ? null : edited.getIdioma().trim().toLowerCase(java.util.Locale.ROOT),
         trim(edited.getProvincia()), trim(edited.getFax()), edited.getAceptaPublicidad(), null, null),
         io.mateu.ecdemo1.frontoffice.infra.security.DeskUser.name());
+  }
+
+  static boolean changed(String before, String after) {
+    return !blank(after) && !after.trim().equalsIgnoreCase(before == null ? "" : before.trim());
+  }
+
+  /**
+   * Who the pax is, from the kárdex the desk just saved — what the guest told them: a Riu Class number
+   * confirms the customer (certainty), as does an email the chain knows; with no certainty, name,
+   * surnames and birth date look for who they may be (only possible). Null when there was nothing new
+   * to ask the MDM, or nothing worth telling the desk.
+   */
+  String reconocer(DocumentoEditor edited, String riuClassAntes, String emailAntes) {
+    var desk = io.mateu.ecdemo1.frontoffice.infra.security.DeskUser.name();
+    var cliente = recognition.view(stayId, paxIndex());
+    if (!blank(edited.getRiuClass()) && (!cliente.known() || changed(riuClassAntes, edited.getRiuClass()))) {
+      var answer = recognition.confirm(stayId, paxIndex(), desk, edited.getRiuClass());
+      return (answer.done() ? "★ " : "") + answer.message();
+    }
+    if (cliente.known()) {
+      return null;
+    }
+    if (!blank(edited.getEmail()) && changed(emailAntes, edited.getEmail())) {
+      var answer = recognition.confirm(stayId, paxIndex(), desk, edited.getEmail());
+      if (answer.done()) {
+        return "★ " + answer.message();
+      }
+    }
+    if (!cliente.possible() && edited.getFechaNacimiento() != null
+        && !(blank(edited.getNombre()) && blank(edited.getApellidos()))) {
+      var answer = recognition.searchByName(stayId, paxIndex(), edited.getNombre(), edited.getApellidos(),
+          edited.getFechaNacimiento());
+      return answer.done() ? answer.message() : null;
+    }
+    return null;
   }
 
   /** No Edit button while there is no data — the empty state only offers the scan. */
@@ -474,11 +569,20 @@ public class DocumentoView extends EditableView<Object, DocumentoView.DocumentoE
       case "escanear" -> escanear(false);
       case "escanearPasaporteNuevo" -> escanear(true);
       case "save" -> {
-        // registering a pending pax by hand completes it like a scan: go on to the next one; a
-        // contact edit of a complete pax stays on it
+        // registering a pending pax by hand completes it like a scan: go on to the next one — unless
+        // the save recognised them (the wizard stays on them to see it); an edit of a complete pax
+        // stays on it
         boolean registro = !pax().complete();
+        var edited = httpRequest.getInitiatorState(DocumentoEditor.class);
+        boolean conStay = edited != null && stayId != null && !stayId.isBlank();
+        var riuClassAntes = conStay ? kardexOf().map(PaxKardexes.PaxKardex::riuClass).orElse(null) : null;
+        var emailAntes = conStay ? pax().email() : null;
         var result =
             new ArrayList<Object>((java.util.Collection<?>) super.handleAction(actionId, httpRequest));
+        var aviso = conStay ? reconocer(edited, riuClassAntes, emailAntes) : null;
+        if (aviso != null) {
+          result.add(new io.mateu.uidl.data.Message(aviso));
+        }
         result.add(UICommand.dispatchEvent("documento-escaneado", java.util.Map.of("avanzar", registro)));
         yield result;
       }
