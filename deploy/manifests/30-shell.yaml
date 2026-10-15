@@ -35,7 +35,7 @@ spec:
         seccompProfile: { type: RuntimeDefault }
       containers:
         - name: shell
-          image: miguelperezcolom/ec-demo1-shell:0.74.0
+          image: miguelperezcolom/ec-demo1-shell:0.75.0
           env:
             - name: SERVER_PORT
               value: "8101"
