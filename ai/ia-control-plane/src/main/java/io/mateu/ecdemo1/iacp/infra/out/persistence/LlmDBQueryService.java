@@ -58,6 +58,7 @@ public class LlmDBQueryService implements LlmQueryService {
     static LlmDto toDto(LlmEntity e) {
         return new LlmDto(e.getId(), e.getName(), LlmProvider.valueOf(e.getProvider()),
                 e.getModel(), e.getBaseUrl(), e.getTemperature(), e.getMaxTokens(),
+                e.getPriceCurrency(), e.getInputPricePerMillion(), e.getOutputPricePerMillion(),
                 e.getCredential() != null && !e.getCredential().isBlank(),
                 e.isEnabled(), e.getCreated());
     }

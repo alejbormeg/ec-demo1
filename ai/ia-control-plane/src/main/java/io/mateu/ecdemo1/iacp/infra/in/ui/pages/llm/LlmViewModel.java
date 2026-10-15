@@ -76,6 +76,17 @@ public class LlmViewModel implements CatalogueEditor<LlmDto> {
     @Help("At least 256. Too low truncates every answer mid-sentence without any error.")
     Integer maxTokens;
 
+    @Section("Pricing")
+    @Help("What a million input tokens cost. Grafana multiplies the agents' token counts by it; "
+            + "leave it empty when unknown — the model is then left out of the cost panels.")
+    Double inputPricePerMillion;
+
+    @Help("What a million output tokens cost.")
+    Double outputPricePerMillion;
+
+    @Help("Three letters, e.g. EUR or USD. Empty means EUR. Each currency is added up on its own.")
+    String priceCurrency;
+
     @Section("Credential")
     @ReadOnly
     @Help("Whether a key is stored. The key itself is never shown, here or anywhere else.")
@@ -95,12 +106,14 @@ public class LlmViewModel implements CatalogueEditor<LlmDto> {
 
     public String create(HttpRequest httpRequest) {
         return createLlmUseCase.handle(new CreateLlmCommand(newId, name, provider, model,
-                baseUrl, temperature, maxTokens, newApiKey));
+                baseUrl, temperature, maxTokens, priceCurrency, inputPricePerMillion,
+                outputPricePerMillion, newApiKey));
     }
 
     public void save(HttpRequest httpRequest) {
         updateLlmUseCase.handle(new UpdateLlmCommand(id, name, provider, model, baseUrl,
-                temperature, maxTokens, enabled));
+                temperature, maxTokens, priceCurrency, inputPricePerMillion, outputPricePerMillion,
+                enabled));
     }
 
     @Toolbar
@@ -135,6 +148,9 @@ public class LlmViewModel implements CatalogueEditor<LlmDto> {
         baseUrl = dto.baseUrl();
         temperature = dto.temperature();
         maxTokens = dto.maxTokens();
+        priceCurrency = dto.priceCurrency();
+        inputPricePerMillion = dto.inputPricePerMillion();
+        outputPricePerMillion = dto.outputPricePerMillion();
         credentialStatus = dto.credentialSet() ? "set" : "missing";
         // Never populated from storage. There is nothing to populate it from — the read side does
         // not carry the key — and this line is here so nobody adds one later.

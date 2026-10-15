@@ -5,6 +5,7 @@ import io.mateu.ecdemo1.iacp.domain.aggregates.llm.Llm;
 import io.mateu.ecdemo1.iacp.domain.aggregates.llm.vo.Credential;
 import io.mateu.ecdemo1.iacp.domain.aggregates.llm.vo.LlmId;
 import io.mateu.ecdemo1.iacp.domain.aggregates.llm.vo.LlmProvider;
+import io.mateu.ecdemo1.iacp.domain.aggregates.llm.vo.Pricing;
 import io.mateu.ecdemo1.iacp.domain.aggregates.llm.vo.ModelName;
 import io.mateu.ecdemo1.iacp.domain.aggregates.llm.vo.SamplingOptions;
 import io.mateu.ecdemo1.iacp.domain.aggregates.shared.vo.Enabled;
@@ -32,6 +33,9 @@ public class LlmDBRepository implements LlmRepository {
         e.setBaseUrl(llm.getBaseUrl());
         e.setTemperature(llm.getSampling().temperature());
         e.setMaxTokens(llm.getSampling().maxTokens());
+        e.setPriceCurrency(llm.getPricing().isSet() ? llm.getPricing().currency() : null);
+        e.setInputPricePerMillion(llm.getPricing().inputPerMillion());
+        e.setOutputPricePerMillion(llm.getPricing().outputPerMillion());
         e.setCredential(llm.getCredential().cipherText());
         e.setEnabled(llm.getEnabled().value());
         e.setCreated(llm.getCreated().value());
@@ -67,6 +71,7 @@ public class LlmDBRepository implements LlmRepository {
                 new ModelName(e.getModel()),
                 e.getBaseUrl(),
                 new SamplingOptions(e.getTemperature(), e.getMaxTokens()),
+                new Pricing(e.getPriceCurrency(), e.getInputPricePerMillion(), e.getOutputPricePerMillion()),
                 new Credential(e.getCredential()),
                 new Enabled(e.isEnabled()),
                 new Time(e.getCreated()));

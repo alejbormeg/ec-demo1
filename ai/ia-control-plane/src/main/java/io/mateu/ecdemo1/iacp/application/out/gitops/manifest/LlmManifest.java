@@ -10,5 +10,21 @@ import io.mateu.ecdemo1.iacp.domain.aggregates.llm.vo.LlmProvider;
  */
 public record LlmManifest(String id, String name, LlmProvider provider, String model,
                           String baseUrl, Double temperature, Integer maxTokens,
-                          String credentialEnv, Boolean enabled) {
+                          PricingManifest pricing, String credentialEnv, Boolean enabled) {
+
+    /** What a million tokens cost, in and out — see {@code Pricing}. Every field optional. */
+    public record PricingManifest(String currency, Double input, Double output) {
+    }
+
+    public String priceCurrency() {
+        return pricing == null ? null : pricing.currency();
+    }
+
+    public Double inputPricePerMillion() {
+        return pricing == null ? null : pricing.input();
+    }
+
+    public Double outputPricePerMillion() {
+        return pricing == null ? null : pricing.output();
+    }
 }

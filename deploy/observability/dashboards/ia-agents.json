@@ -39,6 +39,34 @@
           ]
         },
         "sort": 1
+      },
+      {
+        "type": "query",
+        "name": "workflow",
+        "label": "Workflow (LLM_CALL)",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "query": {
+          "query": "label_values(eventconductor_llm_call_seconds_count, workflow)",
+          "refId": "workflow"
+        },
+        "definition": "label_values(eventconductor_llm_call_seconds_count, workflow)",
+        "refresh": 2,
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "sort": 1
       }
     ]
   },
@@ -661,7 +689,347 @@
           "refId": "A"
         }
       ],
-      "description": "gen_ai_client_token_usage_total, per model round trip, as the provider reported it. No cost panel: the LLM catalogue carries no price per model."
+      "description": "gen_ai_client_token_usage_total, per model round trip, as the provider reported it. Its cost is in the Cost rows below."
+    },
+    {
+      "type": "row",
+      "title": "Cost — agents (ia_tokens_total × ia_llm_price_per_mtoken, the LLM catalogue's prices)",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 69
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Agent cost in selected range",
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 0,
+        "y": 70
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value_and_name"
+      },
+      "targets": [
+        {
+          "expr": "sum by (currency) (increase(ia_tokens_total{agent=~\"$agent\"}[$__range]) * on (llm, type) group_left(currency) max by (llm, type, currency) (ia_llm_price_per_mtoken)) / 1e6",
+          "legendFormat": "{{currency}}",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "description": "Tokens × the price per million the LLM catalogue sets for each model (control plane → LLMs → Pricing, exported as ia_llm_price_per_mtoken). A model with no price is left out, not counted as free; each currency is added up on its own."
+    },
+    {
+      "type": "timeseries",
+      "title": "Agent cost per hour by agent",
+      "gridPos": {
+        "h": 8,
+        "w": 9,
+        "x": 6,
+        "y": 70
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": {
+            "fillOpacity": 8,
+            "lineWidth": 2,
+            "stacking": {
+              "mode": "normal"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (agent, currency) (increase(ia_tokens_total{agent=~\"$agent\"}[1h]) * on (llm, type) group_left(currency) max by (llm, type, currency) (ia_llm_price_per_mtoken)) / 1e6",
+          "legendFormat": "{{agent}} · {{currency}}",
+          "refId": "A"
+        }
+      ],
+      "description": "Tokens × the price per million the LLM catalogue sets for each model (control plane → LLMs → Pricing, exported as ia_llm_price_per_mtoken). A model with no price is left out, not counted as free; each currency is added up on its own."
+    },
+    {
+      "type": "table",
+      "title": "Agent cost in selected range, by agent and LLM",
+      "gridPos": {
+        "h": 8,
+        "w": 9,
+        "x": 15,
+        "y": 70
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 4
+        },
+        "overrides": []
+      },
+      "options": {
+        "sortBy": [
+          {
+            "displayName": "Value",
+            "desc": true
+          }
+        ]
+      },
+      "targets": [
+        {
+          "expr": "sum by (agent, llm, currency) (increase(ia_tokens_total{agent=~\"$agent\"}[$__range]) * on (llm, type) group_left(currency) max by (llm, type, currency) (ia_llm_price_per_mtoken)) / 1e6",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "Value": "cost"
+            }
+          }
+        }
+      ],
+      "description": "Tokens × the price per million the LLM catalogue sets for each model (control plane → LLMs → Pricing, exported as ia_llm_price_per_mtoken). A model with no price is left out, not counted as free; each currency is added up on its own."
+    },
+    {
+      "type": "row",
+      "title": "Workflows — LLM_CALL steps (eventconductor_llm_call_seconds, eventconductor_llm_tokens_total)",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 78
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "LLM calls/sec by workflow and step",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 79
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "fillOpacity": 8,
+            "lineWidth": 2,
+            "stacking": {
+              "mode": "normal"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (workflow, step) (rate(eventconductor_llm_call_seconds_count{workflow=~\"$workflow\"}[5m]))",
+          "legendFormat": "{{workflow}} · {{step}}",
+          "refId": "A"
+        }
+      ],
+      "description": "One per LLM_CALL step execution in the EventConductor engine — the model called directly by a workflow, not through an agent."
+    },
+    {
+      "type": "timeseries",
+      "title": "LLM call latency p50 / p95 by model",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 79
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "fillOpacity": 8,
+            "lineWidth": 2,
+            "stacking": {
+              "mode": "none"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.5, sum by (le, model) (rate(eventconductor_llm_call_seconds_bucket{workflow=~\"$workflow\"}[5m])))",
+          "legendFormat": "p50 · {{model}}",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, model) (rate(eventconductor_llm_call_seconds_bucket{workflow=~\"$workflow\"}[5m])))",
+          "legendFormat": "p95 · {{model}}",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "LLM calls/sec that did not succeed, by step and outcome",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 79
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "fillOpacity": 8,
+            "lineWidth": 2,
+            "stacking": {
+              "mode": "normal"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (workflow, step, outcome) (rate(eventconductor_llm_call_seconds_count{workflow=~\"$workflow\",outcome!=\"success\"}[5m]))",
+          "legendFormat": "{{workflow}} · {{step}} · {{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "description": "error = the provider failed or timed out; invalid_output = the answer did not match the step's responseSchema."
+    },
+    {
+      "type": "timeseries",
+      "title": "LLM tokens/sec by workflow and type",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 87
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "fillOpacity": 8,
+            "lineWidth": 2,
+            "stacking": {
+              "mode": "normal"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (workflow, type) (rate(eventconductor_llm_tokens_total{workflow=~\"$workflow\"}[5m]))",
+          "legendFormat": "{{workflow}} · {{type}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Workflow LLM cost in selected range",
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 8,
+        "y": 87
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value_and_name"
+      },
+      "targets": [
+        {
+          "expr": "sum by (currency) (increase(eventconductor_llm_tokens_total{workflow=~\"$workflow\"}[$__range]) * on (model, type) group_left(currency) max by (model, type, currency) (ia_llm_price_per_mtoken)) / 1e6",
+          "legendFormat": "{{currency}}",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "description": "Tokens × the price the LLM catalogue sets for the same provider model id (joined on model). A model no catalogue entry prices is left out."
+    },
+    {
+      "type": "table",
+      "title": "Workflow LLM cost and calls in selected range, by workflow and step",
+      "gridPos": {
+        "h": 8,
+        "w": 10,
+        "x": 14,
+        "y": 87
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 4
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (workflow, step, model, currency) (increase(eventconductor_llm_tokens_total{workflow=~\"$workflow\"}[$__range]) * on (model, type) group_left(currency) max by (model, type, currency) (ia_llm_price_per_mtoken)) / 1e6",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        },
+        {
+          "expr": "sum by (workflow, step, model) (increase(eventconductor_llm_call_seconds_count{workflow=~\"$workflow\"}[$__range]))",
+          "format": "table",
+          "instant": true,
+          "refId": "B"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "Value #A": "cost",
+              "Value #B": "calls"
+            }
+          }
+        }
+      ]
     },
     {
       "type": "row",
@@ -670,7 +1038,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 69
+        "y": 95
       }
     },
     {
@@ -684,7 +1052,7 @@
         "h": 12,
         "w": 24,
         "x": 0,
-        "y": 70
+        "y": 96
       },
       "description": "One row per prompt: the invoke_agent span. Duration is the whole prompt; tokens are the sum of every model round trip under it; tools is how many tool calls it made and which. The span ID links to the full trace — each chat <model> span (gen_ai.input.messages / gen_ai.output.messages) and each execute_tool span (arguments, result, MCP server). The prompt and answer columns are filled only when ia-agent runs with IA_CAPTURE_CONTENT=redacted or full; with none they are empty. The cells show the start of the text; hover or inspect a cell for all of it (up to 16 KB).",
       "targets": [
@@ -790,7 +1158,7 @@
         "h": 12,
         "w": 24,
         "x": 0,
-        "y": 82
+        "y": 108
       },
       "description": "One row per tool call: the execute_tool span, with its duration, its outcome (and the span status), the agent that called it and where the tool lives — the MCP server (ia.mcp.server, the host) or the RAG source (ia.rag.id). The span ID links to the full trace. Arguments and result appear only with IA_CAPTURE_CONTENT=redacted or full.",
       "targets": [

@@ -220,13 +220,16 @@ public class ReconcileCatalogueUseCase {
             var name = orId(m.name(), m.id());
             if (exists) {
                 updateLlm.handle(new UpdateLlmCommand(m.id(), name, m.provider(), m.model(),
-                        m.baseUrl(), m.temperature(), m.maxTokens(), enabled(m.enabled())));
+                        m.baseUrl(), m.temperature(), m.maxTokens(),
+                        m.priceCurrency(), m.inputPricePerMillion(), m.outputPricePerMillion(), enabled(m.enabled())));
             } else {
                 createLlm.handle(new CreateLlmCommand(m.id(), name, m.provider(), m.model(),
-                        m.baseUrl(), m.temperature(), m.maxTokens(), null));
+                        m.baseUrl(), m.temperature(), m.maxTokens(),
+                        m.priceCurrency(), m.inputPricePerMillion(), m.outputPricePerMillion(), null));
                 if (!enabled(m.enabled())) {
                     updateLlm.handle(new UpdateLlmCommand(m.id(), name, m.provider(), m.model(),
-                            m.baseUrl(), m.temperature(), m.maxTokens(), false));
+                            m.baseUrl(), m.temperature(), m.maxTokens(),
+                        m.priceCurrency(), m.inputPricePerMillion(), m.outputPricePerMillion(), false));
                 }
             }
             resolveCredential(m);

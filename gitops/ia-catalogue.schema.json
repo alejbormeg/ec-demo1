@@ -71,6 +71,29 @@
           "type": "integer",
           "minimum": 1
         },
+        "pricing": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "What a million tokens of this model cost. Grafana multiplies the agents' token counts by it (ia_llm_price_per_mtoken). Leave it out when unknown: the model is then left out of the cost panels rather than shown as free.",
+          "properties": {
+            "currency": {
+              "type": "string",
+              "pattern": "^[A-Za-z]{3}$",
+              "default": "EUR",
+              "description": "Three-letter currency code the prices are written in. Each currency is added up on its own."
+            },
+            "input": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Price of a million input (prompt) tokens."
+            },
+            "output": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Price of a million output (completion) tokens."
+            }
+          }
+        },
         "credentialEnv": {
           "type": "string",
           "description": "The name of an environment variable the control plane resolves the API key from at sync time. The secret stays in the deployment; the repo holds only this name."

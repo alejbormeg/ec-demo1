@@ -30,7 +30,7 @@ pod. `deploy.sh` los aplica con `apply_dashboard <nombre> <clave> <fichero>`.
 | **EventConductor** | `eventconductor.json` | Si el motor da abasto, dónde se va el tiempo, si el relay es el cuello de botella |
 | **EventConductor — nodes** | `nodes.json` | CPU por componente, throttling, el pool JDBC, GC |
 | **Booking traces** | `booking-traces.json` | Las trazas de las reservas, el lado técnico de «Ver recorrido» |
-| **IA agents** | `ia-agents.json` | Prompts y llamadas a herramientas recientes, con su contenido si se captura; prompts por [camino de datos](/ia/datos-del-agente/#cuál-funciona-mejor) (búsqueda o SQL) |
+| **IA agents** | `ia-agents.json` | Prompts y llamadas a herramientas recientes, con su contenido si se captura; prompts por [camino de datos](/ia/datos-del-agente/#cuál-funciona-mejor) (búsqueda o SQL); **coste** por agente y LLM (tokens × el precio del [catálogo](/ia/gitops/#precios)); y los pasos **LLM_CALL** de los workflows: llamadas, latencia, fallos, tokens y coste |
 | **IA token usage** | `ia-tokens.json` | Tokens por agente |
 | **External APIs** | `external-apis.json` | El consumo de Salesforce y de Opera |
 | **Errores del navegador** | `client-errors.json` | Los errores que los renderers de las consolas mandan desde el navegador (`client-error` en Loki) |

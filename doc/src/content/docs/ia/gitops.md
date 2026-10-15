@@ -43,6 +43,25 @@ Una entrada por fichero. El campo `kind` (`llm` | `mcp` | `apimcp` | `rag` | `ag
   `apimcp` es una oferta compuesta y su lista de herramientas **es** la entrada. Omitir `tools` deja la
   oferta guardada como está; una lista vacía la vacía a propósito.
 
+## Precios
+
+Una entrada `llm` puede llevar lo que cuesta un millón de tokens de entrada y de salida. El plano de
+control lo exporta (`ia_llm_price_per_mtoken{llm, model, type, currency}`) y Grafana lo multiplica por
+los tokens: los de los agentes se cruzan por `llm`, los de los pasos `LLM_CALL` de los workflows por
+`model`. Sin precio, el modelo **no sale** en los paneles de coste —no se cuenta como gratis—; cada
+moneda se suma por separado. También se edita en la consola (LLMs → *Pricing*).
+
+```yaml
+kind: llm
+id: anthropic
+provider: ANTHROPIC
+model: claude-sonnet-4-5
+pricing:
+  currency: USD   # por defecto EUR
+  input: 3        # por millón de tokens de entrada
+  output: 15      # por millón de tokens de salida
+```
+
 ## En ec1
 
 ```yaml

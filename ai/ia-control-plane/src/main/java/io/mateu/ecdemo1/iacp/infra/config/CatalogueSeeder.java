@@ -92,7 +92,7 @@ public class CatalogueSeeder {
             log.info("Catalogues are empty — seeding this deployment's own agent.");
 
             createLlm.handle(new CreateLlmCommand("anthropic", "Anthropic",
-                    LlmProvider.ANTHROPIC, "claude-sonnet-4-5", null, 0.1, 4096,
+                    LlmProvider.ANTHROPIC, "claude-sonnet-4-5", null, 0.1, 4096, null, null, null,
                     // Empty is fine and expected: the key is bought, not generated, so a
                     // deployment without one gets a catalogued model that says "missing" until
                     // someone fills it in from the console. That is the same failure as before,
@@ -115,7 +115,7 @@ public class CatalogueSeeder {
             var ragIds = new ArrayList<String>();
             if (ragUrl != null && !ragUrl.isBlank()) {
                 createLlm.handle(new CreateLlmCommand("embeddings", "Embeddings (local, multilingual)",
-                        LlmProvider.OPENAI_COMPATIBLE, embeddingModel, embeddingBaseUrl, 0.0, 256,
+                        LlmProvider.OPENAI_COMPATIBLE, embeddingModel, embeddingBaseUrl, 0.0, 256, null, null, null,
                         embeddingApiKey));
                 createRag.handle(new CreateRagCommand("handbook", "Ops handbook",
                         RagKind.PGVECTOR, ragUrl, "handbook_vectors", "embeddings", 5,

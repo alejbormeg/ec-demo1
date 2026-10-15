@@ -86,7 +86,7 @@ public final class InMemoryRepositories {
 
     /** An Anthropic LLM with a key: usable. */
     public static Llm usableLlm(String id) {
-        var llm = Llm.of(new LlmId(id), new Name(id), LlmProvider.ANTHROPIC, new ModelName("claude"), null, null);
+        var llm = Llm.of(new LlmId(id), new Name(id), LlmProvider.ANTHROPIC, new ModelName("claude"), null, null, null);
         llm.replaceCredential(new Credential("enc:key"));
         return llm;
     }

@@ -9,5 +9,6 @@ import io.mateu.ecdemo1.iacp.domain.aggregates.llm.vo.LlmProvider;
  */
 public record UpdateLlmCommand(String id, String name, LlmProvider provider, String model,
                                String baseUrl, Double temperature, Integer maxTokens,
-                               boolean enabled) {
+                               String priceCurrency, Double inputPricePerMillion,
+                               Double outputPricePerMillion, boolean enabled) {
 }

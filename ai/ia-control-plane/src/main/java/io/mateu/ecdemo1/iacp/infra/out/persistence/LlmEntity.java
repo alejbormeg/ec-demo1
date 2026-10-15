@@ -35,6 +35,9 @@ public class LlmEntity {
     String baseUrl;
     Double temperature;
     Integer maxTokens;
+    String priceCurrency;
+    Double inputPricePerMillion;
+    Double outputPricePerMillion;
     @Column(length = 4096)
     String credential;
     boolean enabled;

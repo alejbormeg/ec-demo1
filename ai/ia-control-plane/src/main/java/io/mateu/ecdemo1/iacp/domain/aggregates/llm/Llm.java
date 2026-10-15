@@ -5,6 +5,7 @@ import io.mateu.ecdemo1.iacp.domain.aggregates.llm.vo.LlmId;
 import io.mateu.ecdemo1.iacp.domain.aggregates.llm.vo.LlmProvider;
 import io.mateu.ecdemo1.iacp.domain.aggregates.llm.vo.LlmUsability;
 import io.mateu.ecdemo1.iacp.domain.aggregates.llm.vo.ModelName;
+import io.mateu.ecdemo1.iacp.domain.aggregates.llm.vo.Pricing;
 import io.mateu.ecdemo1.iacp.domain.aggregates.llm.vo.SamplingOptions;
 import io.mateu.ecdemo1.iacp.domain.aggregates.shared.vo.Enabled;
 import io.mateu.ecdemo1.iacp.domain.aggregates.shared.vo.Name;
@@ -37,12 +38,14 @@ public class Llm extends AggregateRoot {
     /** Null for a provider's own endpoint; set for OpenAI-compatible servers. */
     String baseUrl;
     SamplingOptions sampling;
+    /** What a million tokens cost; see {@link Pricing}. Never null — {@link Pricing#none()}. */
+    Pricing pricing;
     Credential credential;
     Enabled enabled;
     Time created;
 
     public static Llm of(LlmId id, Name name, LlmProvider provider, ModelName model,
-                         String baseUrl, SamplingOptions sampling) {
+                         String baseUrl, SamplingOptions sampling, Pricing pricing) {
         var llm = new Llm();
         llm.id = id;
         llm.name = name;
@@ -50,6 +53,7 @@ public class Llm extends AggregateRoot {
         llm.model = model;
         llm.baseUrl = baseUrl;
         llm.sampling = sampling != null ? sampling : SamplingOptions.defaults();
+        llm.pricing = pricing != null ? pricing : Pricing.none();
         // Catalogued before it is usable, on purpose: an entry can be written now and given a key
         // by someone who has one. `isUsable` is what keeps it out of an agent's config until then.
         llm.credential = Credential.none();
@@ -60,12 +64,13 @@ public class Llm extends AggregateRoot {
 
     /** Everything about an LLM except its credential. */
     public void update(Name name, LlmProvider provider, ModelName model,
-                       String baseUrl, SamplingOptions sampling, Enabled enabled) {
+                       String baseUrl, SamplingOptions sampling, Pricing pricing, Enabled enabled) {
         this.name = name;
         this.provider = provider;
         this.model = model;
         this.baseUrl = baseUrl;
         this.sampling = sampling;
+        this.pricing = pricing != null ? pricing : Pricing.none();
         this.enabled = enabled;
     }
 

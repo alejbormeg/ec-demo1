@@ -6,6 +6,7 @@ import io.mateu.ecdemo1.iacp.domain.aggregates.llm.Llm;
 import io.mateu.ecdemo1.iacp.domain.aggregates.llm.vo.Credential;
 import io.mateu.ecdemo1.iacp.domain.aggregates.llm.vo.LlmId;
 import io.mateu.ecdemo1.iacp.domain.aggregates.llm.vo.ModelName;
+import io.mateu.ecdemo1.iacp.domain.aggregates.llm.vo.Pricing;
 import io.mateu.ecdemo1.iacp.domain.aggregates.llm.vo.SamplingOptions;
 import io.mateu.ecdemo1.iacp.domain.aggregates.shared.vo.Name;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +28,9 @@ public class CreateLlmUseCase {
         }
         var llm = Llm.of(id, new Name(command.name()), command.provider(),
                 new ModelName(command.model()), blankToNull(command.baseUrl()),
-                new SamplingOptions(command.temperature(), command.maxTokens()));
+                new SamplingOptions(command.temperature(), command.maxTokens()),
+                new Pricing(command.priceCurrency(), command.inputPricePerMillion(),
+                        command.outputPricePerMillion()));
         // The key is encrypted here and never held in the clear beyond this statement — the
         // aggregate only ever receives ciphertext. See Credential.
         if (command.apiKey() != null && !command.apiKey().isBlank()) {

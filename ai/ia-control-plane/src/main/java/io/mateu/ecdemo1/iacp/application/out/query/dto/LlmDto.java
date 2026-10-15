@@ -19,6 +19,9 @@ public record LlmDto(
         String baseUrl,
         Double temperature,
         Integer maxTokens,
+        String priceCurrency,
+        Double inputPricePerMillion,
+        Double outputPricePerMillion,
         boolean credentialSet,
         boolean enabled,
         LocalDateTime created) {
