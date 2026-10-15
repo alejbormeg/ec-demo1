@@ -35,7 +35,7 @@ spec:
         seccompProfile: { type: RuntimeDefault }
       containers:
         - name: journey-service
-          image: miguelperezcolom/ec-demo1-journey-service:0.74.0
+          image: miguelperezcolom/ec-demo1-journey-service:0.75.0
           env:
             - name: SERVER_PORT
               value: "8130"

@@ -20,7 +20,7 @@
         <java.version>21</java.version>
         <!-- Pinned rather than floating: this is the version the reference deployment was built
              and verified against. -->
-        <mateu.version>3.0-alpha.421</mateu.version>
+        <mateu.version>3.0-alpha.422</mateu.version>
         <!-- The renderer, and what goes with it. One module, two images: this default builds
              ec-demo1-shell (Vaadin); `-Predwood` builds ec-demo1-shell-redwood from the same
              sources, with io.mateu:redwood in place of io.mateu:vaadin-lit — the only difference
