@@ -1,6 +1,6 @@
 ---
 title: Tareas
-description: Cada tarea que el motor despacha en ec1 — su contrato, el topic del worker que la atiende y los procesos que la usan.
+description: Las tareas que sirven los workers de ec-demo1 — integración, administración de la demo y topics de cada servicio.
 ---
 
 Las tareas son los contratos `.ectask` de
@@ -15,8 +15,20 @@ en su versión 1. Cada worker declara las que sirve en `contracts/workers/<servi
 | `mapping` | `mapping-service` |
 | `pms-integration` | `pms-integration-service` |
 | `integrations` | `integrations-service` |
+| `erp` | `erp` |
+| `front-office` | `front-office` |
+| `notices-tasks` | `notices` |
+| `customer-mdm` | `customer-mdm-service` |
+| `customer-history-tasks` | `customer-history` |
+| `loyalty-tasks` | `loyalty` |
+| `communication` | `communication-service` |
+| `audit-tasks` | `audit-service` |
 
-La descripción es la del contrato, recortada.
+Los ids y topics se contrastan con los inventarios locales. Los procesos indicados son sus usos en la
+integración y la demo; el chequeo contra la revisión de ec-definitions elegida se hace con
+`check-contracts.sh`.
+
+## Integración
 
 | Tarea | Topic | Procesos | Qué hace |
 | :---- | :---- | :------- | :------- |
@@ -41,7 +53,7 @@ La descripción es la del contrato, recortada.
 | `prepare-partner@1` | `mapping` | `proyectar-interlocutor` | Lee el interlocutor del ERP y comprueba sus equivalencias. Si falta alguna, abre sus causas y el proceso espera. |
 | `prepare-reservation@1` | `mapping` | `proyectar-reserva` | Lee la reserva del CRS y comprueba que todos sus códigos tienen equivalencia en el PMS. Si falta alguna, abre sus causas y el proceso espera. |
 | `record-partner-profile@1` | `mapping` | `proyectar-interlocutor` | Registra qué perfil del PMS es el interlocutor, y en qué versión, y reanuda las reservas que esperaban a que existiera en el PMS. |
-| `relaunch-process@1` | `mapping` | `proyectar-reserva`, `proyectar-cancelacion`, `proyectar-interlocutor`, `registrar-checkin`, `registrar-checkout`, `registrar-no-show-pms`, `registrar-cargo`, `anular-cargo` | Un proceso que esperaba sus causas y ya no tiene ninguna abierta pide su sucesor: una instancia nueva de sí mismo, que lee otra vez lo que proyecta. Dos veces, un sucesor. |
+| `relaunch-process@1` | `mapping` | Proyecciones y operaciones de recepción que esperan causas, incluidos cobros, devoluciones y asignación de empresa | Un proceso que esperaba sus causas y ya no tiene ninguna abierta pide su sucesor: una instancia nueva de sí mismo, que lee otra vez lo que proyecta. Dos veces, un sucesor. |
 | `resolve-projection@1` | `mapping` | `proyectar-reserva` | La reserva ya está en el PMS: resuelve la causa de la cancelación que esperaba a que se proyectara. |
 | `assign-room@1` | `pms-integration` | `registrar-checkin` | Asigna en Opera la habitación que dio recepción, si Opera no la tiene; sin habitación elegida, la de Opera o la primera que sugiere. Un rechazo abre su causa y el proceso espera. |
 | `check-in-reservation@1` | `pms-integration` | `registrar-checkin` | Hace el check-in en Opera. Ya en casa: no escribe (`STALE`). Un rechazo (llegada que no es la fecha de negocio de Opera, habitación…) abre su causa y se cuenta al front office. |
@@ -51,10 +63,46 @@ La descripción es la del contrato, recortada.
 | `reverse-charge@1` | `pms-integration` | `anular-cargo` | Anula en Opera un cargo que recepción anuló: el mismo importe en negativo, el mismo código, referencia `FO:<línea>:R`. Ya anulado: no escribe. Si el cargo aún no está en Opera, espera a que llegue. |
 | `post-payment@1` | `pms-integration` | `registrar-cobro` | Postea un cobro de la caja (pago o anticipo) en el folio de Opera (acción `Billing`) con la forma de pago que corresponde, referencia `FO:PAY:<cobro>`. Ya posteado: no escribe. Sin los huéspedes en casa en Opera, o rechazado: causa. |
 | `refund-payment@1` | `pms-integration` | `devolver-cobro` | Devuelve en el folio de Opera un cobro devuelto en la caja: el mismo pago en negativo contra el original, referencia `FO:PAY:<cobro>:R`. Sin el cobro en Opera todavía: espera. |
-| `assign-company@1` | `pms-integration` | `asignar-empresa` | Pone en la reserva de Opera la empresa a la que se factura (perfil *Company* y ventana 2 del folio enrutada a ella) o la quita. Ya así: no escribe. Empresa aún no proyectada a Opera: espera (`MISSING_PARTNER`). Rechazado: causa. |
+| `assign-company@1` | `pms-integration` | `asignar-empresa` | Pone o quita el perfil *Company* y solicita el enrutado del folio a la empresa. En XMAR queda pendiente confirmar que Opera aplique ese enrutado. Ya así: no escribe. Empresa aún no proyectada a Opera: espera (`MISSING_PARTNER`). Rechazado: causa. |
 | `record-no-show@1` | `pms-integration` | `registrar-no-show-pms` | Anota el no-show en la reserva de Opera como comentario (el estado «No Show» lo pone la auditoría nocturna). Ya anotado o cancelada: no escribe. En casa: causa. |
 | `cancel-reservation@1` | `pms-integration` | `proyectar-cancelacion` | Cancela en Opera una reserva cancelada en el CRS, con su motivo; un no-show deja antes su cargo en la reserva. Si Opera aún no la tiene, espera a que se proyecte (R37). |
 | `ensure-guest-profile@1` | `pms-integration` | `proyectar-reserva` | Asegura en Opera el perfil del huésped titular: quién es lo dice el MDM de clientes, y lo que el MDM no sabe, la reserva. Si Opera ya tiene esta versión de la reserva, no se escribe (salvo que el MDM la proyecte para reescribir al huésped). |
 | `ensure-partner-profile@1` | `pms-integration` | `proyectar-interlocutor` | El interlocutor del ERP como perfil de Opera: el que el ERP ya conoce, el que Opera tenga con su CorporateId o uno nuevo. Si falta la equivalencia de su tipo o Opera lo rechaza, abre la causa y el proceso espera. |
 | `project-stay@1` | `pms-integration` | `proyectar-estancia` | Relee de Opera una reserva —del CRS o nacida en Opera— y la manda al front office como estancia (`front-office-commands`), con el titular que diga el MDM. |
 | `upsert-reservation@1` | `pms-integration` | `proyectar-reserva` | Graba la reserva en Opera: la busca por el localizador del CRS, compara la versión que Opera tiene (su UDF) con la que se graba, y crea o modifica —o no escribe nada si Opera ya tiene esta o una más nueva (`STALE`)—. Publica `pms-reservations`. |
+
+## Administración de la demo
+
+Estas tareas sirven a **`reset-demo`**, que pide confirmación humana antes de borrar datos. Ver
+[La página Demo](/operacion/pagina-demo/) para su orden, alcance y recuperación de errores.
+
+| Tarea | Topic | Qué hace |
+| :---- | :---- | :------- |
+| `pause-intake@1` | `booking` | Pausa las altas, cambios y cancelaciones del CRS durante el reset |
+| `resume-intake@1` | `booking` | Reanuda la entrada del CRS |
+| `seed-demo-bookings@1` | `booking` | Siembra las reservas demo una vez por ejecución, si se pidió |
+| `clean-salesforce@1` | `customer-mdm` | Limpia los contactos y Cases de la demo y reinicia el punto de lectura de sus eventos |
+| `new-opera-context@1` | `pms-integration` | Cambia el contexto de ejecución y lo guarda para próximos arranques; no borra Opera |
+| `purge-engine@1` | `integrations` | Purga el estado del motor conservando el proceso del propio reset |
+| `check-demo-health@1` | `integrations` | Comprueba los servicios y el contexto de Opera, y devuelve el resumen |
+| `notify-reset-result@1` | `integrations` | Notifica y audita el resultado de la ejecución |
+
+El contrato **`reset@1`** se atiende en los siguientes topics:
+
+| Topic | Servicio y alcance |
+| :---- | :----------------- |
+| `booking` | CRS: sus reservas y datos asociados |
+| `crs-integration` | Integración CRS: sus datos y mensajes pendientes |
+| `mapping` | Diccionario, causas y estado del mapeado |
+| `integrations` | Registro y estado de las integraciones |
+| `erp` | Outbox del ERP; conserva los interlocutores |
+| `front-office` | Tablas declaradas de estancias y recepción, incluida la copia del catálogo PMS; conserva el catálogo propio y libera habitaciones. Ver las diferencias con `zero.sh` en [Demo](/operacion/pagina-demo/#alcance-actual-frente-a-zerosh) |
+| `notices-tasks` | Avisos de recepción |
+| `customer-mdm` | Clientes, referencias y trabajo pendiente del hub |
+| `customer-history-tasks` | Historial de estancias y alias de clientes |
+| `loyalty-tasks` | Socios y acumulaciones de puntos |
+| `communication` | Notificaciones y bandejas |
+| `audit-tasks` | Auditoría salvo las acciones `Demo: …` |
+
+El detalle de tablas y excepciones lo declara el `DemoResetPlan` de cada servicio. El conector de Opera
+no sirve `reset@1`: usa `new-opera-context@1`.

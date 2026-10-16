@@ -10,12 +10,12 @@ página baja un nivel: cómo está hecho un módulo por dentro, de qué depende 
 
 | Carpeta | Qué va | Por qué ahí |
 | :------ | :----- | :---------- |
-| `systems/` | Los sistemas de la cadena (CRS, ERP, front office, avisos) y `pms/opera-mock` | Son los extremos: tienen su propio modelo y no saben nada de la integración |
+| `systems/` | Los sistemas de la cadena (CRS, ERP, front office, avisos, historial de clientes y fidelización) y `pms/opera-mock` | Son los extremos: tienen su propio modelo y no saben nada de la integración |
 | `integration/` | Los adaptadores y servicios del plano de datos | La ACL: lo único que traduce entre sistemas |
 | `control-plane/` | Lo que configura y mide (integraciones, auditoría, comunicación, reglas de registro, usuarios) | Lo que gobierna el flujo, con su propia consola |
 | `consoles/` | `gateway`, `shell`, `control-shell` | Solo federan las pantallas de los demás |
 | `ai/` | Los agentes, sus catálogos y `api-mcp` | |
-| `supporting/` | `messaging`, `ui-commons` y `content` | Lo transversal que no es de ningún contexto |
+| `supporting/` | `messaging`, `agent-sql`, `demo-reset`, `ui-commons` y `content` | Lo transversal que no es de ningún contexto |
 | `contracts/` | Una librería por contexto, `schemas/` y `workers/` | El lenguaje publicado; ver [Librerías y esquemas](/contratos/librerias-y-esquemas/) |
 | `deploy/` | Manifiestos, chart, observabilidad, `build-images.sh`, `deploy.sh`, `demo/` | |
 | `gitops/` | El esquema del catálogo de IA y un ejemplo | Lo que un tercero escribe |
@@ -45,7 +45,8 @@ desde su carpeta. El reactor solo ordena por dependencias cuando se compila todo
 Dos clases de módulo:
 
 - **Librerías** (se instalan en `~/.m2`, sin imagen): `contracts/*` (las once librerías de contexto,
-  `contracts-testing` y `contracts-schemas`), `supporting/messaging`, `supporting/ui-commons` y
+  `contracts-testing` y `contracts-schemas`), `supporting/messaging`, `supporting/agent-sql`,
+  `supporting/demo-reset`, `supporting/ui-commons` y
   `control-plane/grpc-interface` (solo un `auth.proto`; de él compila únicamente `control-plane/users`).
 - **Aplicaciones**: todo lo demás. Cada una trae un `Dockerfile` de solo ejecución que copia el jar ya
   compilado, y su imagen se llama como su carpeta:
@@ -153,6 +154,8 @@ El resto de `integration/` y `control-plane/` sigue este estilo (`customer-mdm-s
 | `contracts-<contexto>` | Los records de los mensajes y las llamadas HTTP | Una dependencia por contexto que el servicio habla: el front office toma siete, el conector ocho |
 | `contracts-testing` | `TopicSpec`, `Contracts.topic(…)`, `ServedTasks` | Scope `test` |
 | `supporting/messaging` | `Outbox`, `OutboxRelay`, `Inbox`, `EngineOutbox`, `MessagingSchema` | Autoconfiguración: tenerlo en el classpath basta |
+| `supporting/agent-sql` | `AgentSql`, `SqlGuard`, `AgentViews` | Consultas sobre las vistas `agent.*` de cada servicio; ver [Cómo lee los datos el agente](/ia/datos-del-agente/) |
+| `supporting/demo-reset` | `DemoReset`, `DemoResetPlan`, `DemoResetTask` | Cada servicio declara qué vacía y sirve `reset@1` en su topic; ver [La página Demo](/operacion/pagina-demo/) |
 | `supporting/ui-commons` | `CatalogueCrud`, `DbPaging`, `UserWidget`, `ApiUsageWidget`, `Html` | Clases que las pantallas Mateu extienden o usan |
 | `grpc-interface` | Los stubs de `auth.proto` | Solo `users` |
 

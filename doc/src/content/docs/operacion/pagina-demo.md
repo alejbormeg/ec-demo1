@@ -7,15 +7,16 @@ En la consola de control (`console.ec1.mateu.io`), **Demo** reúne las dos cosas
 demo misma. Solo para administradores (`ai-admin`: el gateway no deja pasar `/_demo` a nadie más) y
 **todo auditado**, con quién: lo ve **Audit** como «Demo: …».
 
-Los scripts de [`deploy/demo/`](/operacion/demo/) siguen ahí y hacen lo mismo desde fuera
-(`zero.sh`, `opera-outage.sh`); la página lo hace desde dentro, sin `kubectl` ni SQL.
+Los scripts de [`deploy/demo/`](/operacion/demo/) permiten resetear y simular la caída desde fuera
+(`zero.sh`, `opera-outage.sh`); la página coordina estas operaciones desde dentro, sin `kubectl` ni SQL
+manual. El alcance del borrado depende del plan que declara cada servicio.
 
 ## Resetear la demo
 
 «Resetear la demo…» lanza el proceso **`reset-demo`** del motor (en
 [ec-definitions](https://github.com/miguelperezcolom/ec-definitions/blob/master/definitions/workflows/reset-demo.ec)).
-Lleva la demo al mismo cero que `zero.sh`, pero **sin parar ningún servicio y sin SQL desde fuera**:
-cada servicio se vacía a sí mismo.
+Coordina el vaciado de la demo **sin parar ningún servicio y sin SQL desde fuera**:
+cada servicio ejecuta su propio plan de borrado.
 
 ```mermaid
 flowchart LR
@@ -35,7 +36,7 @@ flowchart LR
 | :--- | :---- | :------- |
 | Confirmar | formulario `confirmar-reset-demo` (motor de formularios) | Llega a la **bandeja** de los administradores (se reclama y se completa en *Tareas*); dice que también borra los contactos y Cases de **Salesforce**. Sin marcar «Sí», el proceso termina sin tocar nada. La otra casilla siembra al final las 10 reservas demo de MRU01 |
 | Pausar la entrada | booking (`pause-intake`) | El CRS rechaza reservas nuevas, cambios y cancelaciones —asistente, API, MCP, «+ 10 reservas demo»— hasta que se reanude; como mucho 30 min |
-| Cada servicio a cero | cada uno, tarea `reset` en su topic | Vacía **sus propias** tablas en una transacción, con sus consumidores de Kafka en pausa mientras tanto (la librería `supporting/demo-reset`): booking, ERP (su outbox), front office (y las habitaciones quedan libres), avisos, crs-integration, mapping, MDM, integraciones, comunicación, auditoría (menos las acciones «Demo: …») |
+| Cada servicio a cero | cada uno, tarea `reset` en su topic | Vacía las tablas de **su plan** en una transacción, con sus consumidores de Kafka en pausa mientras tanto (la librería `supporting/demo-reset`): booking, ERP (su outbox), front office (y las habitaciones quedan libres), avisos, historial de clientes, fidelización, crs-integration, mapping, MDM, integraciones, comunicación, auditoría (menos las acciones «Demo: …») |
 | Salesforce | customer-mdm (`clean-salesforce`) | Borra los Cases de petición de cambio y todos los contactos, de 200 en 200, y retoma los eventos de Salesforce desde ahora |
 | Contexto de Opera | pms-integration (`new-opera-context`) | `ECDEMO1-<MMddHHmm>` (UTC): el conector lo usa **al momento, sin reiniciar**, y lo guarda en el ConfigMap `ec-demo-run` (para su próximo arranque y para los scripts). **Opera no se limpia nunca** |
 | El motor a cero | integrations-service (`purge-engine`) | Borra procesos, pasos, formularios, candados, recursos, logs e índices **menos los del propio reset**. Es el último paso de datos |
@@ -44,8 +45,19 @@ flowchart LR
 | Salud | integrations-service (`check-demo-health`) | La readiness de cada servicio y del motor, que no quede una caída de Opera simulada, y que el conector escriba bajo el contexto nuevo. No falla: lo cuenta |
 | Aviso | integrations-service (`notify-reset-result`) | Un aviso en la bandeja con el resultado —quién lo lanzó, quién lo confirmó, el contexto nuevo, lo borrado— y su registro de auditoría «Demo: reset completado» |
 
-Lo que se queda es lo configurado: interlocutores del ERP, habitaciones y catálogos del front office,
+Lo que se queda es lo configurado: interlocutores del ERP, habitaciones y catálogo propio del front office,
 reglas de registro, definiciones de procesos, contenido, usuarios y Keycloak.
+La copia del catálogo de Opera (`pms_catalogue`, `pms_catalogue_sync`) sí se vacía y debe volver a llegar
+con la integración.
+
+### Alcance actual frente a `zero.sh`
+
+El plan del front office (`infra/demo/DemoResetConfig.java`) aún **no incluye** `arrival_briefing`,
+`pax_kardex`, `folio_payment` ni `folio_credit`, que sí aparecen en `deploy/demo/zero.sh`. Esas tablas
+no tienen una clave foránea a `stay` en `schema.sql`, así que el `TRUNCATE … CASCADE` del plan no las
+vacía por arrastre. Por tanto, el reset desde la página no garantiza el mismo vaciado que el script
+para los datos de preparación de llegadas, kárdex y caja añadidos después. Es una diferencia comprobada
+en el código; no se ha ejecutado un reset para validar su efecto en un clúster.
 
 ### Seguridad
 
@@ -79,8 +91,8 @@ estado e intentos, y el enlace al proceso en la consola del motor (`ec1.mateu.io
 
 ### Desde la línea de comandos
 
-`zero.sh` sigue haciendo lo mismo parando los servicios; `snapshot.sh`/`reset.sh` (la línea base) no
-cambian.
+`zero.sh` vacía las tablas que enumera parando los servicios; `snapshot.sh`/`reset.sh` restauran la
+línea base. El alcance del script y el de los planes por servicio debe comprobarse al añadir tablas.
 
 ## Simular que Opera no responde
 

@@ -15,7 +15,7 @@ con Mateu, pintado por Redwood.
 | *Bienvenida* | La página de inicio |
 | *Reservas* | Las estancias: llegadas, en casa, salidas; la ficha con huéspedes, estancia y enlaces a los demás sistemas. Junto al nombre de cada huésped, la bandera de su nacionalidad (la que escaneó recepción para ese pax o, si no, la del cliente en el MDM) |
 | *Llegadas*, *In house*, *Salidas* | Atajos a las tres vistas del día: el mismo listado de reservas con su vista ya elegida (`/reservas?vista=LLEGADAS_HOY`, `IN_HOUSE`, `SALIDAS_HOY`), como las tarjetas de la bienvenida. Solo para el personal |
-| Check-in | Asistente: identidad (con el escaneo del documento), habitación, extras, confirmación |
+| Check-in | Asistente por operaciones pendientes: avisos, identidad, habitación, firma, extras, cobro, llave, wifi y confirmación |
 | Check-out y folios | Cierre de la estancia y sus cargos |
 | *＋ Walk-in* | Asistente para vender en el mostrador: habitación, tarifa y régimen **del CRS**, precio pedido al CRS, titular |
 | *Automatizaciones* | Solo para el personal |
@@ -46,7 +46,23 @@ Y lo que el front office **manda**, por su outbox:
 - lo que hizo **recepción** — check-in, check-out, no show —, al PMS (`front-office-events`), que lo
   registra en Opera; el no show sigue de Opera al CRS, que aplica su cargo;
 - cada **cargo** que recepción pone en el folio —extras del check-in, late check-out, consumos— y cada
-  anulación, al folio de Opera (`charge-posted`, `charge-voided`): el alojamiento no, que lo cobra Opera.
+  anulación, al folio de Opera (`charge-posted`, `charge-voided`): el alojamiento no, que lo cobra Opera;
+- los **cobros y devoluciones** de la caja (`payment-taken`, `payment-refunded`), al folio de Opera;
+- la **empresa de facturación** de la estancia (`company-changed`), a la reserva de Opera;
+- la **estancia cerrada** (`stay-closed`), al historial del cliente y a fidelización.
+
+## El asistente de check-in
+
+`CheckInWizard` abre solo las operaciones que faltan al entrar: **Avisos** si hay avisos de check-in,
+**Identidad** si queda documentación pendiente, **Habitación** si no está asignada, y **Firma**,
+**Extras**, **Cobro**, **Llave** y **Wifi** si aún no están hechos. **Confirmar** muestra siempre el
+resumen. Los pasos elegidos se conservan durante esa ejecución: completar uno no hace que desaparezca
+del recorrido mientras se navega por él.
+
+Cada paso tiene **Volver a la reserva** en sus botones. El escaneo avanza al siguiente huésped
+pendiente. La tableta, el datáfono, el codificador de llaves y el portal wifi muestran su trabajo en un
+diálogo de progreso; los dispositivos son simulados. Si se está completando un check-in forzado de
+una estancia que ya está en casa, solo se abren la documentación y la firma pendientes, más el resumen.
 
 ## El estado de Opera y la factura
 
@@ -109,8 +125,8 @@ las listas**: libres y con el estado de housekeeping que la propiedad exige para
 (`frontoffice.pms-ready-statuses`; XMAR, solo **inspeccionadas** — una «limpia, sin inspeccionar» la
 rechaza con FOF00081). Las libres que aún no están listas se ven en gris con el motivo («No lista —
 Limpia, sin inspeccionar en Opera») y se pueden elegir a propósito (Opera puede rechazarla); las ocupadas
-o fuera de servicio no se pueden elegir. En la estancia que llega, un aviso dice si la habitación asignada
-está **lista en Opera** o por qué no, con **«Comprobar»** para preguntarlo otra vez (lo de Opera se
+o fuera de servicio no se pueden elegir. En la ficha de la reserva, el estado de la habitación asignada
+se muestra en la **insignia de su tarjeta**, con **«Comprobar»** para preguntarlo otra vez (lo de Opera se
 guarda 20 s: una pantalla se repinta a cada clic).
 
 ## Avisos de recepción, al entrar y al salir

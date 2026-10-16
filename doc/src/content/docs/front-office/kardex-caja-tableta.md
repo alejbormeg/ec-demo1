@@ -9,8 +9,9 @@ igual que si lo hiciera recepción a mano.
 
 ## El kárdex completo
 
-En el paso **Identidad** del check-in (y en la ficha del huésped), el editor del documento recoge todo el
-kárdex:
+En el paso **Identidad** del check-in y en el drawer de cada huésped de la reserva se usa el mismo
+formulario de kárdex. Se organiza en cuatro columnas y, al guardar la identidad, vuelve a evaluar el
+reconocimiento del cliente. Recoge los siguientes datos:
 
 | Bloque | Campos |
 | :-- | :-- |
@@ -44,8 +45,12 @@ Opera no recibe el kárdex de recepción (tampoco antes): sus perfiles salen de 
 
 ## La caja de la estancia
 
-Botón **Caja** en la reserva (por llegar y en casa): la cuenta de la estancia en la moneda del hotel
-(`frontoffice.currency`, EUR por defecto).
+Icono **Caja** en la cabecera de la reserva (por llegar y en casa): la cuenta de la estancia en la moneda
+del hotel (`frontoffice.currency`, EUR por defecto).
+
+La pantalla se divide en **Cobrar**, **Crédito**, **Cobros y recibos** y **Devolver o anular**. El email
+se pide para un link de pago y la referencia para una transferencia; las acciones de fijar límite,
+cancelar y restablecer el crédito están en la pestaña Crédito.
 
 - **Saldo pendiente** = cargos del folio − lo cobrado. Con el desglose: cargos, cobrado y anticipos.
 - **Cobrar**, como *cobro* o como **anticipo**, con estas formas de pago:
@@ -96,11 +101,14 @@ partner de tipo `Company` del ERP, el maestro de partners, que la integración p
 - **Dónde se ve.** En la cabecera de la reserva, como **EMPRESA**, en la misma línea que PRECIO CRS, TOTAL
   OPERA, AGENCIA y FIDELIDAD («—» sin empresa). Llega con la reserva de Opera: su perfil *Company*, cuyo
   `CorporateId` es el código del partner. La agencia es el *TravelAgent* (o el *Source*), ya no la empresa.
-- **Elegirla, cambiarla o quitarla.** Con **✎ Empresa** en la barra de la reserva: se busca entre las
-  empresas del ERP (`GET /partners?type=Company`) y se elige una. El front office sale con
-  `company-changed` en `front-office-events` y arranca **`asignar-empresa`**: el perfil se adjunta a la
-  reserva de Opera y el alojamiento y la pensión se le enrutan en la ventana 2 del folio. Hasta que Opera
-  la muestra, una proyección de la reserva tal como estaba no deshace lo que eligió recepción.
+- **Elegirla, cambiarla o quitarla.** Con **✎** junto a EMPRESA en la cabecera: el drawer abre un
+  listado de empresas del ERP (`GET /partners?type=Company`), con búsqueda por texto y columnas de
+  código, nombre, NIF y ciudad. Pulsar una fila la asigna a la estancia y cierra el selector. El front
+  office sale con `company-changed` en `front-office-events` y arranca **`asignar-empresa`**: el perfil se adjunta a la
+  reserva de Opera y se solicita enrutarle el alojamiento y la pensión en la ventana 2 del folio. En
+  XMAR aún no está verificado que Opera aplique ese enrutado; ver [Problemas conocidos](/operacion/problemas-conocidos/#salesforce-y-opera).
+  Hasta que Opera muestra la empresa, una proyección de la reserva tal como estaba no deshace lo que
+  eligió recepción.
 - **Corregir sus datos.** Nombre, CIF, dirección, email y teléfono se editan en el mismo drawer y se
   guardan en el ERP (`PUT /partners/{code}`). El ERP los anuncia y `ensure-partner-profile` actualiza el
   perfil de Opera cuando la versión del partner es más nueva que la proyectada.
@@ -108,16 +116,19 @@ partner de tipo `Company` del ERP, el maestro de partners, que la integración p
 
 ## Check-in en la tableta (Civitfun, simulado)
 
-Botón **Check-in en tableta** en una reserva que llega. Como el escáner de documentos, **no hay tableta**:
+Icono de **tableta** en la cabecera de una reserva que llega. Como el escáner de documentos, **no hay tableta**:
 la simulación hace lo que haría el huésped en ella, y un diálogo de progreso cuenta cada paso:
 
 1. **Escanea su documento**, que va al MDM como un escaneo de recepción.
 2. **Completa sus datos**: email, dirección de su país, idioma y publicidad. Es su kárdex, que va al MDM.
-3. **Elige habitación**: uno de cada tres coge el **upgrade** a la suite 1401 si está libre; los demás se
-   quedan con la suya.
-4. **Garantiza la estancia**: preautoriza su tarjeta o, uno de cada cuatro, **la paga** como anticipo
+3. **Elige habitación**: uno de cada tres intenta el **upgrade** a la suite 1401 si puede asignarla;
+   los demás eligen otra libre y lista de su tipo. Si no hay una alternativa válida, conservan la suya.
+4. **Elige extras**: uno o dos suplementos opcionales del catálogo, sin los ya incluidos; uno de cada
+   cuatro no quiere ninguno. La selección queda cerrada como cuando la completa recepción.
+5. **Garantiza la estancia**: preautoriza su tarjeta o, uno de cada cuatro, **la paga** como anticipo
    con su recibo.
-5. **Firma el registro**.
+6. **Firma el registro**.
 
 Las respuestas salen de la reserva: la misma reserva da siempre las mismas. Al acabar, la reserva
-muestra hechas la documentación, la firma y el cobro, y recepción solo entrega la llave.
+muestra lo completado —documentación, habitación, extras, firma y cobro—. El asistente de recepción
+ofrece las operaciones que sigan pendientes, incluida la llave y el wifi, antes de confirmar el check-in.

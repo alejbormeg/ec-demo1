@@ -3,10 +3,10 @@ title: El agente (ia-agent)
 description: Cómo contesta un prompt el agente — configuración pedida al plano de control, herramientas MCP por petición, disponibilidad y observabilidad.
 ---
 
-`ia-agent` es la otra mitad del panel de chat. **No implementa nada**: cada respuesta es una llamada a
-una herramienta o una negativa. No tiene pantallas, ni base de datos, ni configuración propia; solo sabe
-dónde está el plano de control (`IA_CONTROL_PLANE_URL`). **No tiene agente propio**: qué agente contesta
-se decide en cada petición.
+`ia-agent` es la otra mitad del panel de chat: ejecuta el turno del LLM con las herramientas y el
+contexto del agente resuelto. Las operaciones de negocio las implementan los servidores MCP. No tiene
+pantallas ni base de datos; obtiene modelo, credencial, prompt y herramientas del plano de control
+(`IA_CONTROL_PLANE_URL`). **No tiene agente propio**: qué agente contesta se decide en cada petición.
 
 Un solo despliegue, `ia-agent`, atiende el chat de todas las consolas. El gateway marca cada petición
 a `/ai/**` según el host, y borra lo que el navegador hubiera mandado con esos nombres:
@@ -64,6 +64,21 @@ Desde las pantallas de mapeado de cualquier consola contesta `mapping-agent`, po
   es como dos configuraciones divergen en silencio.
 - Una clave nueva no es un parámetro sino un cliente nuevo: `ChatClientRegistry` guarda uno por
   (proveedor, URL base, clave). Cambiar de modelo no construye nada.
+
+## La conversación y sus límites
+
+El estado de conversación es **local al proceso**. `ConversationStore` usa Caffeine: conserva los
+últimos **cinco intercambios** por sesión, con hasta **1.000 sesiones** y caducidad tras **30 minutos
+sin acceso**. Los totales de tokens de la sesión y el contexto del menú también se mantienen en
+memoria. Reiniciar el pod pierde esas copias y añadir réplicas no las comparte.
+
+Esto es distinto de la persistencia del catálogo y del consumo en el plano de control. La
+implementación actual no aporta una memoria de conversación externa para continuar una sesión en
+cualquier réplica. La política de usar herramientas se transmite en el prompt del agente; las
+validaciones de negocio y las confirmaciones de operaciones las aplica cada servicio.
+
+Fuentes: `ai/ia-agent/src/main/java/io/mateu/ecdemo1/iaagent/ConversationStore.java`,
+`MenuContextStore.java` y los handlers MCP del servicio correspondiente.
 
 ## Observabilidad
 

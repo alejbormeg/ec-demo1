@@ -4,8 +4,13 @@ description: Cómo atiende un servicio las tareas del motor — el TaskRegistrat
 ---
 
 Cada paso `ACTION` de un proceso es una **tarea** que el motor publica en un topic de Kafka y que
-atiende un **worker**. En ec-demo1 son workers `booking`, `crs-integration-service`,
-`mapping-service`, `pms-integration-service` e `integrations-service`, cada uno en su topic.
+atiende un **worker**. Los de integración son `booking`, `crs-integration-service`,
+`mapping-service`, `pms-integration-service` e `integrations-service`. También sirven tareas de
+administración ERP, front office, avisos, MDM, historial de clientes, fidelización, comunicación y
+auditoría: **13 servicios** tienen inventario en `contracts/workers/`.
+
+Ser worker significa atender un `TaskRegistration`; no implica ejecutar un LLM. La lista de
+servicios y topics está en [Tareas](/referencia/tareas/).
 
 ## Los dos lados de una tarea
 
@@ -140,6 +145,7 @@ el hueco se ve al momento. En ec-demo1 lo que lo detecta antes es la comprobaci�
 
 ```
 # pms-integration-service: the tasks it serves, <id>@<version> <topic> — generated from its TaskRegistrations (-Dcontracts.write=true)
+assign-company@1 pms-integration
 assign-room@1 pms-integration
 cancel-reservation@1 pms-integration
 check-in-reservation@1 pms-integration
@@ -147,12 +153,20 @@ check-out-reservation@1 pms-integration
 ensure-guest-profile@1 pms-integration
 ensure-partner-profile@1 pms-integration
 fetch-invoice@1 pms-integration
+new-opera-context@1 pms-integration
 post-charge@1 pms-integration
+post-payment@1 pms-integration
 project-stay@1 pms-integration
 record-no-show@1 pms-integration
+refund-payment@1 pms-integration
 reverse-charge@1 pms-integration
 upsert-reservation@1 pms-integration
 ```
+
+`reset@1` es un contrato compartido servido en **12 topics**, uno por servicio. La librería
+`supporting/demo-reset` pausa los consumidores declarados, vacía las tablas del `DemoResetPlan` en una
+transacción y reanuda los consumidores en `finally`. El listener que ejecuta el propio reset se
+mantiene activo. Cada worker registra su tarea y la incluye en `ServedTasksTest` como las demás.
 
 `deploy/demo/check-contracts.sh` lee ec-definitions y **falla** con cualquier paso `ACTION` cuya tarea
 no tenga contrato, no tenga topic o no la sirva ningún worker en ese topic:
