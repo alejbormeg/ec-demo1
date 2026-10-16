@@ -89,13 +89,8 @@ de Opera. Por eso la demo vive **en un sitio o en el otro, nunca en los dos a la
 EventConductor** y el **doble de Opera** (`opera-mock`). Nada llega a un tenant real de Opera.
 
 ```sh
-# los contratos primero (instalados) y luego los servicios, con clean
-(cd contracts && mvn -q install)
-for m in systems/crs/booking systems/erp integration/crs-integration-service integration/mapping-service \
-         integration/pms-integration-service systems/pms/opera-mock control-plane/communication-service \
-         control-plane/integrations-service integration/customer-mdm-service control-plane/audit-service \
-         systems/front-office; do
-  (cd $m && mvn -q clean package -DskipTests); done
+# desde la raíz: el reactor ordena los contratos y todas las librerías compartidas
+mvn -B -ntp clean package -DskipTests
 
 ./e2e/poc-acl-local/infra.sh     # Postgres (una base de datos por servicio), Redpanda, mailpit, el orquestador
 ./e2e/poc-acl-local/apps.sh      # los servicios; logs en e2e/poc-acl-local/logs/
@@ -136,7 +131,9 @@ resolviendo identidades y no manda nada a Salesforce.
 :::caution[La org es la misma que la de ec1]
 El entorno local y ec1 **comparten la org** y su cupo de 15.000 llamadas al día. Un MDM local olvidado
 arrancado agotó el cupo entero. No dejar el entorno local corriendo con Salesforce activo, y usar el
-intervalo de sondeo por defecto (15 min; el MDM avisa al arrancar si es de menos de 5).
+intervalos de sondeo de `application.yaml` (24 h para las redes de seguridad de consolidaciones,
+cambios y avisos; el camino principal es Pub/Sub). El MDM avisa al arrancar si se configura un sondeo
+de menos de 5 min.
 :::
 
 ### El doble de Opera

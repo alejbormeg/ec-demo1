@@ -14,15 +14,22 @@ clúster se pide; no se lo concede uno mismo.
 ## `build-images.sh`
 
 Instala primero lo que no es una aplicación pero de lo que compilan las demás —`grpc-interface`, los
-contratos, `messaging` y `ui-commons`— y después, por cada módulo de la lista `APPS`, hace un
+contratos, `messaging`, `agent-sql`, `demo-reset` y `ui-commons`— y después, por cada módulo de la lista `APPS`, hace un
 `clean package` y construye la imagen con `docker buildx build --platform linux/amd64 --push`. Las
 imágenes se llaman `miguelperezcolom/ec-demo1-<carpeta>`; las consolas se construyen dos veces (Vaadin
 y `-Predwood`, `-redwood` en el nombre). Al final construye la del sitio de documentación (`doc/`, sin
 paso de Maven) con su propio tag, `DOCS_TAG`.
 
+La lista actual tiene **23 aplicaciones Java**; las dos consolas se construyen con dos renderers, por
+lo que salen **25 imágenes Java y una de documentación**. `opera-mock` queda fuera de `APPS`.
+
 - **El tag se pasa siempre.** Es uno solo para todas las imágenes de esa ejecución, y sin él el script
   no construye nada. Como cada manifiesto fija el suyo, una ronda normal no usa este script entero (ver
   [Desplegar un cambio](#desplegar-un-cambio)).
+
+- **`DOCS_TAG` es independiente de `TAG`.** El script usa `0.1.0` si no se indica; el manifiesto actual
+  fija `0.4.17`. Para publicar una versión nueva del sitio hay que pasar `DOCS_TAG` explícitamente y
+  actualizar `81-docs.yaml` con ese mismo tag.
 
 - **`clean` no es paranoia.** El procesador de anotaciones de Mateu escribe el controlador de la página
   de arranque en `target/generated-sources`, y Maven no lo vuelve a ejecutar si solo cambió
@@ -56,6 +63,7 @@ genera, y cada secreto se crea solo si su valor está:
 | `ec-opera` | `OPERA_*` en `credentials.env` (sin él, integrations-service no arranca) |
 | `ec-salesforce` | `SF_DOMAIN`, `SF_CLIENT_ID`, `SF_CLIENT_SECRET` |
 | `ec-anthropic` | `ANTHROPIC_API_KEY` |
+| `ec-agent-reader` | `AGENT_DB_USERNAME=agent_reader` y `AGENT_DB_PASSWORD`, generada una vez; lectura SQL de los agentes del CRS y del front office |
 | `postfix-relay` | `POSTFIX_RELAY_PASSWORD` (vacío si no está: el correo se queda en cola) |
 | `ec-webpush` | `~/.config/ec-demo1/webpush.env` (las claves VAPID; unas nuevas dejan huérfanos los navegadores suscritos) |
 | `ec-googlechat` | `GOOGLE_CHAT_WEBHOOK`, **solo si el secreto no existe**: el de ec1 lleva un segundo espacio añadido a mano |
@@ -69,7 +77,9 @@ Hasta el 07-10-2026, `deploy.sh` no reconstruía ec1 entero: no aplicaba las dos
 `ec-googlechat` se habían creado a mano. Se descubrió desplegando en un clúster vacío
 ([Entorno local](/desarrollo/entorno-local/)), que es la forma de comprobarlo: todo manifiesto nuevo va
 también en `deploy.sh`.
-::: Tampoco crea el DNS: `ec1` y `*.ec1` tienen que apuntar al
+:::
+
+Tampoco crea el DNS: `ec1` y `*.ec1` tienen que apuntar al
 balanceador del ingress antes de que Let's Encrypt emita nada; el comodín cubre cualquier host nuevo, y
 cada uno recibe su certificado por HTTP-01 la primera vez que se resuelve.
 
@@ -89,7 +99,8 @@ Lo habitual no es `deploy.sh` entero sino una ronda de módulos:
 3. `kubectl apply -f` de esos manifiestos y esperar el `rollout status`.
 4. Un commit `deploy: …` con las versiones, por PR.
 
-Si cambió `contracts/`, `ui-commons` o la versión de Mateu, los que dependen de ellos también cambian:
+Si cambió una librería compartida (`contracts/`, `messaging`, `agent-sql`, `demo-reset`, `ui-commons`)
+o la versión de Mateu, los que dependen de ella también cambian:
 se reconstruyen todos los afectados, con `clean`.
 
 :::caution[El disco se llena]

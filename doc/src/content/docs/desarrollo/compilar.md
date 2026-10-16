@@ -10,13 +10,15 @@ Spring Boot 4.0 las consolas `shell` y `control-shell`, `ia-control-plane`, `use
 
 ## El orden
 
-Cuatro módulos no son aplicaciones y los demás compilan contra ellos: se **instalan** primero en
+Las librerías compartidas no tienen imagen. Si se compila cada aplicación por separado, se **instalan** primero en
 `~/.m2`, en este orden (es lo que hace `deploy/build-images.sh`):
 
 ```sh
 (cd control-plane/grpc-interface && mvn -B -ntp -DskipTests install)   # los stubs de gRPC de users
 (cd contracts && mvn -B -ntp -DskipTests install)                       # el lenguaje publicado
 (cd supporting/messaging && mvn -B -ntp -DskipTests install)            # outbox, relay e inbox
+(cd supporting/agent-sql && mvn -B -ntp -DskipTests install)            # consultas SQL de los agentes
+(cd supporting/demo-reset && mvn -B -ntp -DskipTests install)           # reset de cada servicio
 (cd supporting/ui-commons && mvn -B -ntp -DskipTests install)           # lo que comparten las UIs
 ```
 
@@ -37,11 +39,14 @@ mvn -B -ntp -pl integration/pms-integration-service -am test
 
 | Propiedad | Valor | Dónde |
 | :-------- | :---- | :---- |
-| `mateu.version` | `3.0-alpha.383` | En **todos** los módulos con interfaz: una sola versión, porque las consolas pintan las pantallas de los demás pods |
-| `eventconductor.version` | `2.23.1` | Los módulos que hablan con el motor (`shared`, `worker-kafka`) |
+| `mateu.version` | `3.0-alpha.422` | En **todos** los módulos con interfaz: una sola versión, porque las consolas pintan las pantallas de los demás pods |
+| `eventconductor.version` | `2.25.1` | Los módulos que hablan con el motor (`shared`, `worker-kafka`) |
 | `testcontainers.version` | `1.21.4` | En los módulos Boot 3.4 que usan Testcontainers, por Docker 29 |
 
 Subir Mateu: ver [Mateu](/desarrollo/mateu/).
+
+Estos son los valores de los `pom.xml`, no los tags de todas las imágenes del motor: el despliegue fija
+por separado orquestador, formularios y reglas. Ver [Versiones y alcance](/referencia/estado-del-repositorio/).
 
 ## Los esquemas y las tareas generados
 

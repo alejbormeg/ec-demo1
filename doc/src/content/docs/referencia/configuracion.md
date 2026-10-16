@@ -3,7 +3,9 @@ title: Configuración
 description: Las variables de entorno de cada servicio en ec1 y los Secrets de los que salen, tal como están en los manifiestos.
 ---
 
-Todo sale de `deploy/manifests/*.yaml`. Los valores entre paréntesis vienen de un Secret o ConfigMap que
+La configuración de despliegue sale de `deploy/manifests/*.yaml` y `deploy/values/eventconductor.yaml`;
+los valores por defecto, del `application.yaml` o `application.properties` de cada servicio.
+Los valores entre paréntesis vienen de un Secret o ConfigMap que
 crea `deploy.sh` desde `deploy/.secrets/credentials.env` (git lo ignora): **ningún secreto está en el
 repositorio**.
 
@@ -42,6 +44,20 @@ el valor por defecto de `application.yaml`, `http://<servicio>:<puerto>`.
 
 Las cabeceras se sustituyen siempre: lo que mande el navegador con esos nombres no llega al agente.
 
+### shells
+
+Las cuatro imágenes de consola necesitan **`MATEU_SELF_BASE_URL`** para resolver sus `RemoteMenu`
+relativos contra el gateway:
+
+| Despliegue | Valor en el manifiesto |
+| :--------- | :--------------------- |
+| `shell` | `https://ec1.mateu.io` |
+| `shell-redwood` | `https://rw.ec1.mateu.io` |
+| `control-shell` | `https://console.ec1.mateu.io` |
+| `control-shell-redwood` | `https://rw-console.ec1.mateu.io` |
+
+`deploy/local/up.sh` adapta los valores al entorno local. Ver [Mateu](/desarrollo/mateu/).
+
 ### pms-integration-service
 
 | Variable | Valor | Para qué |
@@ -57,8 +73,13 @@ Las cabeceras se sustituyen siempre: lo que mande el navegador con esos nombres 
 | `OPERA_EXTERNAL_SYSTEM`, `OPERA_CUSTOM_REFERENCE` | (ConfigMap `ec-demo-run`, opcional; `ECDEMO1` y `EC-DEMO1` por defecto) | El contexto de la ejecución de la demo |
 
 En `application.yaml`: `OPERA_CHARGE_DEFAULT_CODE` (`1851`, el código de transacción de un cargo sin
-código propio; los demás, por tipo, en `opera.charges.codes`) y `OPERA_NO_SHOW_CODES` (`NOSHOW`, los
+código propio; los demás, por tipo, en `ohip.charges.codes`) y `OPERA_NO_SHOW_CODES` (`NOSHOW`, los
 motivos de cancelación de Opera que son un no-show, para las estancias del front office).
+
+Los cobros de caja usan `ohip.payments`: `OPERA_PAYMENT_DEFAULT_METHOD` (`CASH`),
+`OPERA_PAYMENT_CARD_METHOD` (`VI`) y `OPERA_PAYMENT_LINK_METHOD` (`VI/OL`); efectivo y manual se
+traducen a `CASH`, transferencia a `BT`. `OPERA_OUTAGE_DELAY` (`5s`) es la espera de cada llamada
+durante la caída simulada que controla la página Demo.
 
 Cómo se llega a cada propiedad no está aquí: es de la integración de cada hotel, en `integrations-service`.
 
@@ -137,6 +158,17 @@ dejan de valer al reiniciar) y `FORCED_CHECKIN_CHECK_INTERVAL` (`PT1M`).
 
 `CUSTOMER_MDM_URL` (los enlaces de la ficha), `AUDIT_URL=http://audit-service:8129` (su «History»:
 quién hizo qué con la reserva).
+
+### SQL de los agentes (booking y front-office)
+
+Los dos manifiestos inyectan **`AGENT_DB_USERNAME` y `AGENT_DB_PASSWORD`** desde el Secret
+`ec-agent-reader`. El despliegue prepara el usuario `agent_reader` y cada servicio, al arrancar,
+le concede lectura sobre sus vistas `agent.*`. Las propiedades `agent-sql.username` y
+`agent-sql.password` seleccionan esa conexión lectora; no sustituyen la conexión de escritura del servicio.
+
+La librería limita las consultas a `agent-sql.timeout=5s` y `agent-sql.max-rows=200` por defecto.
+Si no se configura el usuario lector, usa el `DataSource` del servicio y registra un aviso: desaparece
+la restricción de permisos que aporta el segundo login. Ver [Cómo lee los datos el agente](/ia/datos-del-agente/).
 
 ### journey-service
 

@@ -105,6 +105,14 @@ consola de control, no en el despliegue. Ver [Entorno local](/desarrollo/entorno
 - **No hay ciclos** en una definición, y un paso sucesor de un `CHOICE` que el `CHOICE` no elige se
   descarta: cada punto de espera lleva su propia cadena (ver [Los procesos del motor](/guias/procesos/)).
 
+## Reset de la demo
+
+**La página Demo no vacía las mismas tablas del front office que `zero.sh`.** El `DemoResetPlan` no
+incluye `arrival_briefing`, `pax_kardex`, `folio_payment` ni `folio_credit`; el script sí. Esas tablas
+no tienen clave foránea a `stay`, por lo que no las limpia el `TRUNCATE … CASCADE` del plan.
+Ver [Alcance actual del reset](/operacion/pagina-demo/#alcance-actual-frente-a-zerosh). Es un hallazgo
+estático del código actual, sin ejecutar un borrado en el clúster.
+
 ## Salesforce y Opera
 
 - **El cupo de Salesforce se agota** sin que ec1 haga nada: un MDM local con las mismas credenciales.

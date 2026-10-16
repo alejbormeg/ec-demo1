@@ -12,13 +12,13 @@ Cada módulo es su propio proyecto Maven y su propia imagen, con el nombre de su
 
 | Carpeta | Qué contiene |
 | :------ | :----------- |
-| `systems/` | Los sistemas de la cadena a los que sustituye la PoC, y el front office: `crs/booking` (el CRS), `erp`, `front-office`, `notices` (los avisos de recepción), `pms/opera-mock` (un doble de OHIP solo para la batería local) |
+| `systems/` | Los sistemas de la cadena a los que sustituye la PoC, y el front office: `crs/booking` (el CRS), `erp`, `front-office`, `notices` (los avisos de recepción), `customer-history`, `loyalty` y `pms/opera-mock` (un doble de OHIP solo para la batería local) |
 | `integration/` | **El plano de datos**, la ACL: `crs-integration-service`, `pms-integration-service` (el conector de Opera), `mapping-service`, `customer-mdm-service`, `journey-service` |
 | `control-plane/` | **Quién gobierna el flujo**: `integrations-service` (una integración por hotel y su alta), `audit-service`, `communication-service` (avisos, destinatarios, bandeja, y las alertas de la plataforma que le manda Alertmanager), `registration-rules` (las reglas de registro del kárdex), `users` y `grpc-interface` |
 | `consoles/` | Lo que ve la gente: `gateway`, `shell` (plano de datos) y `control-shell` (plano de control) |
 | `ai/` | Los agentes: `ia-agent`, `ia-control-plane` (los catálogos) y `api-mcp` |
 | `contracts/` | El lenguaje que hablan los servicios: librerías por contexto, esquemas de los topics y las tareas de cada worker. Ver [Contratos](/contratos/librerias-y-esquemas/) |
-| `supporting/` | `content` (un CRUD), `ui-commons` (lo que comparten las interfaces) y `messaging` (el outbox, su relay y el inbox que comparten los servicios con base de datos) |
+| `supporting/` | `content` (un CRUD), `ui-commons` (interfaces), `messaging` (outbox, relay e inbox), `agent-sql` (lectura SQL para los agentes) y `demo-reset` (reset de cada servicio) |
 | `deploy/` | Manifiestos, el chart del motor (vendorizado), observabilidad, `deploy.sh`, `build-images.sh` y los scripts de la demo |
 | `e2e/` | Playwright contra el clúster desplegado, y la batería punta a punta local |
 | `gitops/` | El esquema público del catálogo de IA en YAML y un ejemplo |
@@ -70,10 +70,13 @@ tienen operativa propia que enseñar.
 
 ## El motor
 
-EventConductor lleva cada reserva por sus pasos. Los procesos están en ec-definitions y son doce:
+EventConductor lleva cada reserva por sus pasos. Los procesos de negocio que referencia este código están
+en ec-definitions:
 `proyectar-reserva`, `proyectar-cancelacion`, `proyectar-interlocutor`, `proyectar-estancia`,
 `registrar-no-show`, `registrar-checkin`, `registrar-checkout`, `registrar-no-show-pms`,
-`registrar-cargo`, `anular-cargo`, `alta-integracion` y `alta-integracion-fo`. Cada paso `ACTION` es una **tarea**
+`registrar-cargo`, `anular-cargo`, `registrar-cobro`, `devolver-cobro`, `asignar-empresa`,
+`alta-integracion` y `alta-integracion-fo`. A ellos se suma **`reset-demo`**, la operación administrativa
+que vacía la demo después de una confirmación humana. Cada paso `ACTION` es una **tarea**
 que atiende un worker en un topic de Kafka (`mapping`, `pms-integration`, `crs-integration`,
 `integrations`, `booking`). Ver [Los procesos del motor](/guias/procesos/) y
 [Workers y tareas](/contratos/workers-y-tareas/).
@@ -84,8 +87,12 @@ Dos decisiones marcan cómo están escritos:
   el proceso espera en un `WAIT_FOR_MESSAGE` correlado por su clave y, cuando se resuelve su última
   causa, **relanza una instancia nueva** que relee la reserva (el motor no admite ciclos). Ver
   [Causas, avisos y bandeja](/integracion/causas-y-avisos/).
-- **Ningún proceso tiene un estado final de fallo.** Los pasos externos reintentan con backoff
-  acotado y sin límite de intentos, con un aviso pasado un umbral.
+- **Los procesos de integración esperan o reintentan.** Los pasos externos reintentan con backoff
+  acotado y sin límite de intentos, con un aviso pasado un umbral. El reset administrativo tiene otra
+  política: puede quedar en error y exige reintentar o cancelar desde [Demo](/operacion/pagina-demo/).
+
+El orquestador también ofrece **programaciones cron** en *Workflow → Schedules*. Administran cuándo
+arranca un workflow; ver [Programaciones](/operacion/programaciones/).
 
 ## Cómo se hablan los servicios: órdenes por Kafka, consultas por HTTP
 

@@ -113,6 +113,7 @@ export default defineConfig({
 					label: 'Operación',
 					items: [
 						{ label: 'Despliegue', slug: 'operacion/despliegue' },
+						{ label: 'Programaciones del motor', slug: 'operacion/programaciones' },
 						{ label: 'El clúster', slug: 'operacion/cluster' },
 						{ label: 'Observabilidad', slug: 'operacion/observabilidad' },
 						{ label: 'Consumo de Salesforce y Opera', slug: 'operacion/consumo-apis-externas' },
@@ -143,6 +144,7 @@ export default defineConfig({
 				{
 					label: 'Referencia',
 					items: [
+						{ label: 'Versiones y alcance', slug: 'referencia/estado-del-repositorio' },
 						{ label: 'Servicios', slug: 'referencia/servicios' },
 						{ label: 'Topics de Kafka', slug: 'referencia/topics' },
 						{ label: 'Tareas', slug: 'referencia/tareas' },

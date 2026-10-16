@@ -1,12 +1,14 @@
 ---
 title: Los procesos del motor
-description: Los doce procesos que ejecuta EventConductor en ec1, paso a paso, y cómo esperan en vez de fallar.
+description: Los procesos de integración y de administración que referencia ec-demo1, sus tareas y cómo esperan o reintentan.
 ---
 
 El motor de ec1 ejecuta **solo los procesos de la PoC**, importados de
 [ec-definitions](https://github.com/miguelperezcolom/ec-definitions) (`definitions/workflows/*.ec`).
 Cada paso `ACTION` nombra su **tarea** (`task:`, un contrato `.ectask`) y el **topic** del worker que
-la atiende. Esta página resume la versión de `master`.
+la atiende. Esta página describe los procesos que referencia el código de ec-demo1; sus definiciones
+se mantienen en ese repositorio externo. El catálogo importado por un clúster depende de la revisión
+de ec-definitions que haya cargado.
 
 ## `proyectar-reserva` — Proyectar reserva
 
@@ -121,12 +123,16 @@ código del partner del ERP (`companyCode`; sin él, «sin empresa»). Cada camb
 `asignar-empresa:<hotel>/<localizador>:<evento>`, dentro del candado `reservation`: gana el último.
 
 - `assign-company` adjunta a la reserva de Opera el perfil *Company* de la empresa (`PUT
-  /rsv/v1/hotels/{h}/reservations/{id}`, solo `reservationProfiles`) y le enruta el alojamiento y la
+  /rsv/v1/hotels/{h}/reservations/{id}`, solo `reservationProfiles`) y pide enrutarle el alojamiento y la
   pensión en la ventana 2 del folio (`PUT /csh/v1/…/routingInstructions/create`, códigos
   `ohip.company-routing-codes`, en XMAR 1100, 1137 y 1138). Sin empresa, borra el enrutado a su perfil y
   quita el perfil.
 - Si la reserva ya tiene esa empresa, no escribe (`STALE`). Si la empresa aún no es perfil de Opera,
   espera a su proyección (`MISSING_PARTNER`). Si Opera la rechaza, causa `PMS_REJECTED` y espera.
+
+La petición de enrutado está implementada, pero en XMAR se anotó que Opera la acepta sin devolver el
+enrutado al consultar. Ver la comprobación histórica y lo pendiente en
+[Problemas conocidos](/operacion/problemas-conocidos/#salesforce-y-opera).
 
 ## `registrar-no-show` — Registrar no-show
 
@@ -152,6 +158,18 @@ Ver [Alta de un hotel](/integracion/alta-de-un-hotel/).
 
 Lo mismo para la integración pms-fo: conexión con Opera y con el front office → catálogo del PMS en el
 front office → backfill → activación.
+
+## `reset-demo` — Administración de la demo
+
+Lo lanza **Demo** en la consola de control, y pide confirmación mediante una tarea humana antes de
+vaciar datos. Pausa la entrada del CRS, manda `reset@1` a cada servicio, limpia los datos de Salesforce,
+cambia el contexto de Opera, purga el estado del motor conservando su propio proceso y reanuda el CRS.
+Puede sembrar las reservas demo, comprueba la salud y notifica el resultado.
+
+Los handlers de esta operación son workers deterministas. Cada servicio declara lo que borra mediante
+`supporting/demo-reset`; el conector sirve `new-opera-context` porque no tiene base de datos propia.
+Un reset en error puede reintentarse o cancelarse; los datos ya vaciados no se restauran al cancelar.
+Ver el alcance y la confirmación en [La página Demo](/operacion/pagina-demo/).
 
 ## Esperar sin ciclos
 
@@ -184,7 +202,8 @@ externa, los perfiles de interlocutor por su `CorporateId`, los cobros por su re
 
 :::note[Versión del motor]
 En la 2.18.0 el `LOCK` no funcionaba sobre PostgreSQL (la clave llevaba un separador NUL) y el conector
-serializaba las escrituras en memoria. En ec1 el orquestador corre la **2.23.4** (dos procesos que
-toman a la vez una clave de `LOCK` libre ya no mandan el paso del perdedor al topic de mensajes muertos)
-y forms y rules la 2.23.1; las definiciones usan el `LOCK` del motor.
+serializaba las escrituras en memoria. La corrección de la 2.23.4 evita que dos procesos que toman a la
+vez una clave de `LOCK` libre manden el paso del perdedor al topic de mensajes muertos. Los values
+actuales fijan el orquestador en **2.25.1**, formularios en **2.23.8** y reglas en **2.23.6**; las
+definiciones usan el `LOCK` del motor.
 :::

@@ -45,7 +45,7 @@ Opera y el front office, un cliente que vuelve y se consolida, la recepción, lo
     El **plano de datos** (`ec1.mateu.io`) es lo que usa el negocio; el **plano de control**
     (`console.ec1.mateu.io`) es quién lo gobierna. Cada una, pintada por Vaadin y por Redwood.
   </Card>
-  <Card title="Agentes que solo llaman herramientas" icon="rocket">
+  <Card title="Agentes configurables con herramientas" icon="rocket">
     El agente de la consola, el del plano de control, el de recepción y el de mapeado responden
     llamando a herramientas MCP; los sirve un solo `ia-agent` para todas las consolas, se configuran
     desde un catálogo, se llaman entre sí por A2A y pueden llevar guardarraíles.
@@ -55,6 +55,8 @@ Opera y el front office, un cliente que vuelve y se consolida, la recepción, lo
 ## Por dónde empezar
 
 <CardGrid>
+  <LinkCard title="Versiones y alcance" href="/referencia/estado-del-repositorio/" description="Estado del código revisado el 16 de octubre de 2026 y fuentes para contrastarlo." />
+  <LinkCard title="Programaciones del motor" href="/operacion/programaciones/" description="Cron, próximos arranques, pausas y administración por consola, REST y MCP." />
   <LinkCard title="Introducción" href="/guias/introduccion/" description="Qué es ec-demo1, sus sistemas y dónde verlo funcionando." />
   <LinkCard title="Arquitectura" href="/guias/arquitectura/" description="La regla del maestro, la capa anticorrupción, el motor, outbox e inbox." />
   <LinkCard title="Del CRS a Opera" href="/integracion/crs-a-opera/" description="El camino de una reserva, paso a paso, hasta el conector de OHIP." />
