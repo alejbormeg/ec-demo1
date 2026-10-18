@@ -7,7 +7,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * context ({@code OPERA_EXTERNAL_SYSTEM}) and the reservations' «Custom Reference»
  * ({@code OPERA_CUSTOM_REFERENCE}). Taken from {@link OhipProperties} at startup and swapped at once,
  * without a restart, when the demo goes back to zero (task new-opera-context, process reset-demo).
- * Opera is never cleaned: a new locator that repeats an old one must not find an old run's reservation.
+ * An earlier run's reservations are cancelled, not deleted ({@code EarlierRuns}): a new locator that
+ * repeats an old one must not find an old run's reservation.
  */
 public class OperaContext {
 

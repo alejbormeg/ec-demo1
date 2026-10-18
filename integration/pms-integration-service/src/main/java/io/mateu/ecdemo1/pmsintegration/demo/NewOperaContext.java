@@ -10,8 +10,8 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Task new-opera-context (process reset-demo): a context of its own for the demo's next run,
  * {@code ECDEMO1-<MMddHHmm>} (UTC), taken at once — no restart — and kept in the run's ConfigMap for
- * the next startup and the scripts. Opera is never cleaned: what earlier runs wrote stays there, under
- * their own contexts.
+ * the next startup and the scripts. What earlier runs wrote stays in Opera under their own contexts —
+ * cancelled by cancel-earlier-runs ({@link EarlierRuns}), not deleted.
  *
  * <p>Idempotent: the process that already set a context gets that same one back, from memory or from
  * the ConfigMap, never a second. Written to the ConfigMap first and only then taken: a write that

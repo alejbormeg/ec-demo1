@@ -53,10 +53,16 @@ class UserTest {
         assertThat(alone).singleElement().isInstanceOf(Popover.class);
         var popover = (Popover) alone.get(0);
         assertThat(((Text) popover.wrapped()).text()).contains("Hola, Ana Pérez");
-        // This browser's notifications, between who it is and Logout: drawn by the push script's element.
-        assertThat(((io.mateu.uidl.data.VerticalLayout) popover.content()).content())
+        // This browser's notifications, between who it is and Logout: a slot the push script fills with its
+        // element (Mateu's sanitiser would drop the element itself), and Logout a link the script turns into
+        // window.logout() (a javascript: href is not a link for Mateu).
+        var rows = ((io.mateu.uidl.data.VerticalLayout) popover.content()).content();
+        assertThat(rows)
                 .anySatisfy(c -> assertThat(c).isInstanceOfSatisfying(Text.class,
-                        t -> assertThat(t.text()).isEqualTo("<ec-push-toggle></ec-push-toggle>")));
+                        t -> assertThat(t.text()).isEqualTo("<span data-ec-push-toggle></span>")));
+        assertThat(rows)
+                .anySatisfy(c -> assertThat(c).isInstanceOfSatisfying(io.mateu.uidl.data.Anchor.class,
+                        a -> assertThat(a.url()).isEqualTo("#ec-logout")));
 
         assertThat(UserWidget.withInboxBadge(request(Map.of("Authorization", ANA))))
                 .singleElement().isInstanceOf(HorizontalLayout.class);

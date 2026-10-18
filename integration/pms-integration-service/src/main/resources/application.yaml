@@ -133,6 +133,11 @@ pms-integration:
   # (true in the cluster), or nowhere — memory only — locally.
   run-config:
     kubernetes: ${RUN_CONFIG_KUBERNETES:false}
+  # reset-demo's cancel-earlier-runs: the properties it cleans besides the integrations' (a fresh
+  # environment has none, and Opera keeps what other environments wrote), and the reason it cancels with.
+  demo:
+    cleanup-properties: ${OPERA_CLEANUP_PROPERTIES:}
+    cleanup-reason: ${OPERA_CLEANUP_REASON:OTROS}
 
 management:
   # Traces to Tempo, as the engine's. Sampled at 0 unless TRACING_SAMPLING says otherwise (1.0 in

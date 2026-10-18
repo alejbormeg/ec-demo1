@@ -19,7 +19,9 @@ import java.util.function.Consumer;
 
 /**
  * Five of the things this service consumes (the engine's tasks are the worker runtime's: worker.CrsTasks). Each on the consumer thread and synchronously: a failure
- * leaves the offset uncommitted and the message is redelivered, which the inboxes make harmless.
+ * is retried in place by the binder — every binding sets max-attempts with a back-off in
+ * application.yaml, since the default three attempts would drop the message with no DLQ — and the
+ * inboxes make the redeliveries harmless.
  */
 @Configuration
 @RequiredArgsConstructor

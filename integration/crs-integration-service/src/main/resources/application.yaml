@@ -45,12 +45,24 @@ spring:
         consumeCrsEvents-in-0:
           destination: crs-bookings,partners
           group: ec-demo1-crs-integration-inbox
+          # Retried until it goes: after the binder's default three attempts the event would be
+          # dropped (there is no DLQ), and the inbox makes the redeliveries harmless.
+          consumer:
+            max-attempts: 1000
+            back-off-initial-interval: 1000
+            back-off-max-interval: 60000
         # IN: the integration's business events, to be routed to processes. The router consumes
         # what the inbox half publishes: two stages, so the business event stays visible on the bus
         # and the routing table can change without touching the translation.
         routeIntegrationEvents-in-0:
           destination: integration-events
           group: ec-demo1-crs-integration-router
+          # Retried until it goes: after the binder's default three attempts the event would be
+          # dropped (there is no DLQ), and the inbox makes the redeliveries harmless.
+          consumer:
+            max-attempts: 1000
+            back-off-initial-interval: 1000
+            back-off-max-interval: 60000
         # IN: what the MDM says about a customer — a changed golden record, a merge: its reservations
         # are projected again, so Opera's guest profile is written from the MDM.
         consumeCustomerEvents-in-0:

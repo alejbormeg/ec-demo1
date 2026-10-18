@@ -9,12 +9,25 @@ cómo se graba, en
 [`grabacion-demo.md`](https://github.com/miguelperezcolom/ec-demo1/blob/master/docs/poc-acl/grabacion-demo.md).
 Esta página resume las herramientas de `deploy/demo/`.
 
-## La regla: Opera no se toca
+## La regla: en Opera, solo lo nuestro
 
-**Ni para resetear**: en Opera no se cancela ni se borra nada. La demo está hecha para repetirse encima
+En Opera no se borra nada, y solo se cancela lo que escribió la demo. La demo está hecha para repetirse encima
 de lo que dejó escrito —reservas e interlocutores se buscan antes de escribir, por localizador y por
 `CorporateId`— y durante la demo solo se modifica **lo que se crea en la demo** (una reserva nueva, el
 cambio de datos sobre su titular), nunca lo de la línea base.
+
+**Poner la demo a cero cancela las reservas de la demo**: el reset de la [página Demo](/operacion/pagina-demo/)
+(paso `cancel-earlier-runs`) y `zero.sh` cancelan en Opera las reservas que escribieron esta pasada y las
+anteriores, reconocidas por el contexto del localizador del CRS en sus referencias externas (`ECDEMO1`,
+`ECDEMO1-…`, `ECLOCAL-…`, `EC1-…`), y nada más. Las que están en casa no se pueden cancelar: se listan
+para hacerles el check-out a mano. A mano, sin reset:
+
+```sh
+deploy/demo/opera-cancel-ours.py XMAR          # las lista
+deploy/demo/opera-cancel-ours.py XMAR --yes    # cancela las Reserved / Requested (motivo OTROS)
+```
+
+El 18-10-2026 canceló 256 en XMAR.
 
 ## La demo vive en un solo sitio
 
@@ -103,7 +116,7 @@ Las de `users` y `content` no: un reset no toca usuarios ni contenidos.
 ### Un contexto de Opera por ejecución
 
 El localizador del CRS va en Opera como referencia externa bajo un **contexto** propio, y por él se busca
-la reserva antes de escribirla. Como Opera no se limpia, tras poner ec1 a cero un localizador nuevo
+la reserva antes de escribirla. Como una reserva cancelada sigue en Opera con su localizador, tras poner ec1 a cero un localizador nuevo
 (aleatorio) podría repetir uno antiguo y la integración **actualizaría la reserva vieja**. Por eso cada
 `zero.sh` estrena un contexto, `ECDEMO1-<MMddHHmm>` (UTC), y lo deja en el ConfigMap **`ec-demo-run`**
 (clave `OPERA_EXTERNAL_SYSTEM`), que `pms-integration-service` lee con `envFrom`; sin ConfigMap usa

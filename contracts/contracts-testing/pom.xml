@@ -12,7 +12,9 @@
          victools and networknt (and what they bring) are shaded in, relocated: the services' own
          Spring AI MCP servers depend on other versions of them, and a test-scoped dependency nearer
          in the tree would replace those in the packaged application. Only Jackson stays a
-         dependency, and every service's Boot manages its version. -->
+         dependency, and every service's Boot manages its version. The shaded ones are optional as well:
+         the installed pom (dependency-reduced) no longer names them, but a reactor build reads this pom,
+         and there victools 4.38 still won over Spring AI's 5.0 in the packaged front office. -->
     <parent>
         <groupId>io.mateu.ecdemo1</groupId>
         <artifactId>contracts</artifactId>
@@ -40,16 +42,19 @@
             <groupId>com.github.victools</groupId>
             <artifactId>jsonschema-generator</artifactId>
             <version>${victools.version}</version>
+            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>com.github.victools</groupId>
             <artifactId>jsonschema-module-jackson</artifactId>
             <version>${victools.version}</version>
+            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>com.networknt</groupId>
             <artifactId>json-schema-validator</artifactId>
             <version>${json-schema-validator.version}</version>
+            <optional>true</optional>
         </dependency>
     </dependencies>
 

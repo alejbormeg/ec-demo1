@@ -17,6 +17,14 @@ public interface WaiterRepository extends JpaRepository<Waiter, String> {
     List<Waiter> waitingOn(@Param("cause") String causeKey);
 
     /**
+     * Locks the waiter's row until the transaction ends, and says its status as last committed — empty
+     * when there is none. Two causes of the same process resolved at once both lock it before counting
+     * its open causes: whoever comes second counts after the first committed, and sees both resolved.
+     */
+    @Query(value = "select status from waiter where process_key = :key for update", nativeQuery = true)
+    java.util.Optional<String> lockStatus(@Param("key") String processKey);
+
+    /**
      * The processes a person can still discard from this cause: those waiting on it, and those it
      * released that have not answered — oldest first.
      */

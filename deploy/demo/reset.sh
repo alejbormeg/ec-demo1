@@ -10,7 +10,8 @@
 #   7. starts everything again.
 # Opera is not touched: nothing is cancelled or deleted there. The demo is built to repeat on top of
 # what it wrote (see docs/poc-acl/demo.md, «Resetear la demo»). A baseline taken before the context
-# was saved with it was written under ECDEMO1.
+# was saved with it was written under ECDEMO1. A zero (zero.sh, or reset-demo from the Demo page)
+# cancels in Opera every reservation the demo wrote, the baseline's too: take a new one after it.
 set -euo pipefail
 cd "$(dirname "$0")"
 . ./common.sh

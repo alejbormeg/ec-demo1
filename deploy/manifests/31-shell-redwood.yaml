@@ -1,7 +1,7 @@
 # The demo console rendered by Redwood, beside the Vaadin one rather than instead of it.
 #
-# Same gateway, same backends, same Keycloak client: the ONLY difference is io.mateu:redwood in
-# place of io.mateu:vaadin-lit in its pom, and therefore which renderer draws every screen. A
+# Same gateway, same backends, same Keycloak client: the ONLY difference is io.mateu:mateu-redwood in
+# place of io.mateu:mateu-vaadin in its pom, and therefore which renderer draws every screen. A
 # RemoteMenu carries UIDL rather than HTML, so the orchestrator, the forms engine and the demo
 # services render here without knowing a second console exists.
 #
@@ -39,7 +39,7 @@ spec:
         seccompProfile: { type: RuntimeDefault }
       containers:
         - name: shell-redwood
-          image: miguelperezcolom/ec-demo1-shell-redwood:0.75.0
+          image: miguelperezcolom/ec-demo1-shell-redwood:0.76.0
           env:
             - name: SERVER_PORT
               value: "8102"

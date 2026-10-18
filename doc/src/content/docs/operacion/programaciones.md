@@ -1,9 +1,9 @@
 ---
 title: Programaciones del motor
-description: Schedules en EventConductor 2.25.1 — arranques por cron, propiedad de la configuración, consola, REST y herramientas MCP.
+description: Schedules en EventConductor (desde la 2.25.1) — arranques por cron, propiedad de la configuración, consola, REST y herramientas MCP.
 ---
 
-El despliegue fija el orquestador en **2.25.1** (`deploy/values/eventconductor.yaml`), que incorpora la
+El despliegue fija el orquestador en **2.27.1** (`deploy/values/eventconductor.yaml`), que incluye la
 administración de programaciones en **Workflow → Schedules** de la consola de control. La pantalla la
 sirve el orquestador, a través del `RemoteMenu("/_workflow-admin")` que ya monta `control-shell`:
 no requiere un servicio nuevo de ec-demo1.

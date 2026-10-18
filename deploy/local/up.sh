@@ -30,6 +30,14 @@
 # the same Salesforce events and spends the same daily API allowance, and the local integrations
 # write to the same Opera UAT — under their own context (ECLOCAL-…), never EC-DEMO1's or a run's.
 # zero.sh run against this cluster still deletes every contact in the org: ec1's too.
+#
+# On a Mac (Apple Silicon, Docker Desktop) it runs too, with `brew install kind gnu-sed`: GNU sed as
+# gsed, the node's containerd and volumes inside Docker's VM (overlayfs does not work on a shared
+# folder), no amd64 pin, and the resource requests shrunk — ec1's add up to ~30 GiB and a pod that
+# does not fit stays Pending, while the whole demo uses ~18 GiB. Give Docker Desktop 24 GiB and
+# Rosetta. The engine's images are amd64 only on Docker Hub: arm64 ones built here (docker images)
+# are loaded into the node instead of pulled — see LOCAL_IMAGES below — and this repository's are
+# built here and loaded too (deploy/local/load-images.sh): pushing them from home is far too slow.
 set -euo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 LOCAL_HOME="${LOCAL_HOME:-$HOME/.local/share/ec-demo1-local}"
@@ -38,6 +46,18 @@ PORT="${PORT:-8800}"
 export KUBECONFIG="$LOCAL_HOME/kubeconfig"
 TREE="$LOCAL_HOME/tree"
 mkdir -p "$LOCAL_HOME/containerd" "$LOCAL_HOME/local-path"
+SED=sed
+MAC=false
+if [ "$(uname -s)" = Darwin ]; then
+  MAC=true
+  SED=gsed
+  command -v gsed >/dev/null || { echo "GNU sed is needed: brew install gnu-sed" >&2; exit 1; }
+fi
+MOUNTS="
+    extraMounts:
+      - { hostPath: $LOCAL_HOME/containerd, containerPath: /var/lib/containerd }
+      - { hostPath: $LOCAL_HOME/local-path, containerPath: /var/local-path-provisioner }"
+$MAC && MOUNTS=""
 
 echo "══ kind cluster $CLUSTER (data in $LOCAL_HOME) ══"
 if ! kind get clusters 2>/dev/null | grep -qx "$CLUSTER"; then
@@ -48,10 +68,7 @@ nodes:
   - role: control-plane
     # The manifests pin every pod to hel1/amd64, as on ec1: the one node says it is.
     labels:
-      topology.kubernetes.io/region: hel1
-    extraMounts:
-      - { hostPath: $LOCAL_HOME/containerd, containerPath: /var/lib/containerd }
-      - { hostPath: $LOCAL_HOME/local-path, containerPath: /var/local-path-provisioner }
+      topology.kubernetes.io/region: hel1$MOUNTS
     extraPortMappings:
       - { containerPort: 80, hostPort: $PORT, listenAddress: 127.0.0.1 }
 EOF
@@ -72,7 +89,7 @@ EOF
 # Every *.localhost to the ingress controller, for the pods (the browser does it by itself).
 kubectl -n kube-system get configmap coredns -o jsonpath='{.data.Corefile}' > "$LOCAL_HOME/Corefile"
 if ! grep -q 'localhost' "$LOCAL_HOME/Corefile"; then
-  sed -i 's|^\(\s*\)ready$|\1ready\n\1rewrite name regex (.+)\\.localhost\\.$ ingress-nginx-controller.ingress-nginx.svc.cluster.local. answer auto|' "$LOCAL_HOME/Corefile"
+  "$SED" -i 's|^\(\s*\)ready$|\1ready\n\1rewrite name regex (.+)\\.localhost\\.$ ingress-nginx-controller.ingress-nginx.svc.cluster.local. answer auto|' "$LOCAL_HOME/Corefile"
   kubectl -n kube-system create configmap coredns --from-file=Corefile="$LOCAL_HOME/Corefile" \
     --dry-run=client -o yaml | kubectl apply -f -
   kubectl -n kube-system rollout restart deployment coredns
@@ -81,7 +98,9 @@ fi
 echo "══ A local copy of deploy/: *.ec1.mateu.io → *.localhost, http, no certificates ══"
 rm -rf "$TREE"; mkdir -p "$TREE"
 rsync -a --exclude .secrets --exclude local "$REPO/deploy" "$TREE/"
-find "$TREE/deploy" -type f \( -name '*.yaml' -o -name '*.json' -o -name '*.sh' \) -print0 | xargs -0 sed -i -E \
+# What the services serve, for check-contracts.sh / demo-prep.sh health run from the copy.
+mkdir -p "$TREE/contracts" && rsync -a "$REPO/contracts/workers" "$TREE/contracts/"
+find "$TREE/deploy" -type f \( -name '*.yaml' -o -name '*.json' -o -name '*.sh' \) -print0 | xargs -0 "$SED" -i -E \
   -e "s#https?://([a-z0-9-]+)\.ec1\.mateu\.io#http://\1.localhost:$PORT#g" \
   -e "s#https?://ec1\.mateu\.io#http://ec1.localhost:$PORT#g" \
   -e 's#([a-z0-9-]+)\.ec1\.mateu\.io#\1.localhost#g' \
@@ -106,16 +125,49 @@ for path in sys.argv[1:]:
         out.append(d)
     open(path, 'w').write('\n---'.join(out))
 PY
-sed -i "s#localhost:PORT#localhost:$PORT#g" "$TREE/deploy/manifests/40-ingress.yaml"
+"$SED" -i "s#localhost:PORT#localhost:$PORT#g" "$TREE/deploy/manifests/40-ingress.yaml"
 # The gateway's other three hosts: not in its manifest, their defaults (in the jar) are ec1's.
-sed -i -E 's#^(\s*)- name: CONTROL_HOST$#\1- name: RW_CONSOLE_HOST\n\1  value: rw.localhost\n\1- name: RW_CONTROL_HOST\n\1  value: rw-console.localhost\n\1- name: FRONT_OFFICE_HOST\n\1  value: front.localhost\n\1- name: CONTROL_HOST#' \
+"$SED" -i -E 's#^(\s*)- name: CONTROL_HOST$#\1- name: RW_CONSOLE_HOST\n\1  value: rw.localhost\n\1- name: RW_CONTROL_HOST\n\1  value: rw-console.localhost\n\1- name: FRONT_OFFICE_HOST\n\1  value: front.localhost\n\1- name: CONTROL_HOST#' \
   "$TREE/deploy/manifests/35-gateway.yaml"
 # The ingress controller: on the node's ports 80/443 (kind maps them to this machine), no
 # LoadBalancer, and no redirect to https (the Ingresses keep their tls: blocks; nothing issues them).
-sed -i -E \
+"$SED" -i -E \
   -e "s#controller\.service\.type=LoadBalancer#controller.service.type=NodePort --set controller.service.ports.http=$PORT --set controller.hostPort.enabled=true --set-string controller.config.ssl-redirect=false --set controller.allowSnippetAnnotations=true --set-string controller.config.annotations-risk-level=Critical#" \
   "$TREE/deploy/deploy.sh"
-sed -i -E '/05-clusterissuer\.yaml/d' "$TREE/deploy/deploy.sh"
+"$SED" -i -E '/05-clusterissuer\.yaml/d' "$TREE/deploy/deploy.sh"
+
+if $MAC; then
+  echo "══ Mac: no amd64 pin, small requests, node-exporter without the host's root ══"
+  find "$TREE/deploy" -type f -name '*.yaml' -print0 | xargs -0 "$SED" -i -E \
+    -e '/^\s*kubernetes\.io\/arch: amd64\s*$/d' \
+    -e 's/,\s*kubernetes\.io\/arch: amd64//' \
+    -e 's/\{\s*kubernetes\.io\/arch: amd64\s*\}/{}/' \
+    -e 's/requests:\s*\{\s*memory:[^}]*\}/requests: { memory: "16Mi", cpu: "5m" }/'
+  "$SED" -i -E '/kubernetes\\\.io\/arch"=amd64/d' "$TREE/deploy/deploy.sh"
+  # No liveness probes: ~35 JVMs starting at once on a laptop take minutes, a liveness probe kills each
+  # before it is up, and the restarts feed each other until the node does nothing else (load 130 on
+  # 14 cores). Readiness stays, so nothing gets traffic before it can take it.
+  find "$TREE/deploy/manifests" "$TREE/deploy/chart" -type f -name '*.yaml' -print0 | xargs -0 python3 -c '
+import re, sys
+for path in sys.argv[1:]:
+    lines = open(path).read().split("\n"); out = []; skip = None
+    for line in lines:
+        indent = len(line) - len(line.lstrip())
+        if skip is not None:
+            if line.strip() == "" or indent > skip:
+                continue
+            skip = None
+        if re.match(r"^\s*livenessProbe:", line):
+            skip = indent
+            continue
+        out.append(line)
+    open(path, "w").write("\n".join(out))
+'
+  # The embeddings server publishes its arm64 build under a tag of its own.
+  "$SED" -i 's#text-embeddings-inference:cpu-\([0-9]\)#text-embeddings-inference:cpu-arm64-\1#' "$TREE/deploy/manifests/12-embeddings.yaml"
+  "$SED" -i -E 's/^prometheus-node-exporter:$/prometheus-node-exporter:\n  hostRootFsMount:\n    enabled: false/' \
+    "$TREE/deploy/observability/kube-prometheus-stack.yaml"
+fi
 
 echo "══ Credentials: generated here, except what is bought (Opera, Salesforce, Anthropic, mail) ══"
 mkdir -p "$TREE/deploy/.secrets"
@@ -143,6 +195,20 @@ if ! kubectl -n ec-demo1 get configmap ec-demo-run >/dev/null 2>&1; then
     --from-literal=OPERA_EXTERNAL_SYSTEM="$ctx" --from-literal=OPERA_CUSTOM_REFERENCE="$ctx"
   echo "  Opera context: $ctx"
 fi
+
+# Images this Docker has and the node cannot pull for its platform — on a Mac the engine's (amd64 only
+# on Docker Hub; build arm64 ones from the released jars): loaded into the node, where IfNotPresent
+# finds them. This repository's own: deploy/local/load-images.sh.
+if $MAC && [ -z "${LOCAL_IMAGES:-}" ]; then
+  LOCAL_IMAGES="$(awk '/image: miguelperezcolom\/.*-standalone-app/{i=$2} /imageTag:/ && i {gsub(/"/,"",$2); print i":"$2; i=""}' \
+    "$TREE/deploy/values/eventconductor.yaml")"
+fi
+for img in ${LOCAL_IMAGES:-}; do
+  if docker image inspect "$img" >/dev/null 2>&1; then
+    echo "  loading $img into the node"
+    kind load docker-image "$img" --name "$CLUSTER" >/dev/null
+  fi
+done
 
 echo "══ deploy.sh, as on ec1 ══"
 bash "$TREE/deploy/deploy.sh"

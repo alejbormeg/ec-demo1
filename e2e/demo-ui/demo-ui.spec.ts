@@ -7,7 +7,7 @@ import { HOSTS, RENDERER, RUN, SalesforceFixture, Ui, after, day } from './ui'
  * by hand (docs/poc-acl/demo.md, docs/poc-acl/grabacion-demo.md), as a spec that can be run again.
  *
  * It WIPES the demo data: run it only through demo-ui.config.ts with DEMO_E2E_RESET=1
- * (`DEMO_E2E_RESET=1 npm run demo:ui`, see e2e/README.md). Opera (a shared UAT) is never cleaned:
+ * (`DEMO_E2E_RESET=1 npm run demo:ui`, see e2e/README.md). Opera (a shared UAT) only loses the reservations the demo wrote:
  * the reset moves the demo to a new Opera context, and the run only creates its own reservations.
  *
  * Serial: each flow builds on the one before (flow 1 creates the integrations everything else uses),

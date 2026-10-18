@@ -150,6 +150,39 @@ class CashierTest {
   }
 
   @Test
+  void aLinkPaidTwiceAtOnceIsCapturedOnce_andToldToThePmsOnce() throws Exception {
+    var stayId = inHouse();
+    var link = cashier.take(stayId, Payment.Kind.PAYMENT, Payment.Method.PAY_LINK, new BigDecimal("200"), null, null, "ana");
+
+    // Two POSTs of the public page racing: both read PENDING before either writes.
+    var start = new java.util.concurrent.CountDownLatch(1);
+    var pool = java.util.concurrent.Executors.newFixedThreadPool(2);
+    try {
+      var a = pool.submit(() -> { start.await(); return cashier.payLink(link.linkToken()).orElseThrow(); });
+      var b = pool.submit(() -> { start.await(); return cashier.payLink(link.linkToken()).orElseThrow(); });
+      start.countDown();
+      assertThat(a.get().receiptNo()).isEqualTo(b.get().receiptNo());
+    } finally {
+      pool.shutdown();
+    }
+
+    assertThat(cashier.account(stayId).paid()).isEqualByComparingTo("200.00");
+    assertThat(events(stayId)).singleElement().satisfies(e -> assertThat(e).contains("\"payment-taken\""));
+  }
+
+  @Test
+  void aLinkPaidMeanwhileIsNotCancelledOverThePayment() {
+    var stayId = inHouse();
+    var link = cashier.take(stayId, Payment.Kind.PAYMENT, Payment.Method.PAY_LINK, new BigDecimal("200"), null, null, "ana");
+    var cancelled = link.withStatus(Payment.Status.CANCELLED, null, null, null);
+    cashier.payLink(link.linkToken());
+
+    // The desk's cancel read PENDING before the guest paid: its transition no longer matches.
+    assertThat(cashier.payments.transition(link, cancelled)).isFalse();
+    assertThat(cashier.payment(link.id())).get().satisfies(p -> assertThat(p.captured()).isTrue());
+  }
+
+  @Test
   void nothingIsTakenWithoutAnAmount_norALinkWithoutAnEmail() {
     var stayId = inHouse();
     assertThatThrownBy(() -> cashier.take(stayId, Payment.Kind.PAYMENT, Payment.Method.CASH, BigDecimal.ZERO, null, null, "ana"))

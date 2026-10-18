@@ -459,7 +459,11 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,prometheus,gateway
+        # Not `gateway`: that endpoint can add routes and refresh them, and a route is a proxy to
+        # anywhere this pod can reach. Routes change by redeploying this file, nothing else.
+        # SecurityConfig narrows what is left: health for the probes, prometheus only for a scraper
+        # inside the cluster.
+        include: health,info,prometheus
   endpoint:
     health:
       probes:

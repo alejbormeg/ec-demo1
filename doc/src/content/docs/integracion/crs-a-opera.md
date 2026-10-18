@@ -140,9 +140,9 @@ hace distinto de las especificaciones públicas, o aún no tiene configurado:
   folios (`OPERA_CASHIER_ID`). Los **depósitos** siguen apagados (`OPERA_POST_DEPOSITS=false`).
 - **Un contexto por ejecución de la demo.** El localizador del CRS va en Opera como referencia externa
   bajo un contexto propio (`OPERA_EXTERNAL_SYSTEM`, `ECDEMO1` o `ECDEMO1-<MMddHHmm>` desde el ConfigMap
-  `ec-demo-run`), y todas las reservas llevan la *Custom Reference* `EC-DEMO1`. Opera no se limpia
-  nunca, así que cada puesta a cero estrena contexto para que un localizador nuevo no encuentre una
-  reserva vieja. Ver [La demo](/operacion/demo/).
+  `ec-demo-run`), y todas las reservas llevan la *Custom Reference* `EC-DEMO1`. Una puesta a cero
+  cancela en Opera las reservas de la demo, pero no las borra: estrena contexto para que un localizador
+  nuevo no encuentre una reserva vieja. Ver [La demo](/operacion/demo/).
 - **Disponibilidad**: Opera revalida y puede rechazar por falta de habitaciones (`RSV00138`). No falla:
   es una causa `PMS_REJECTED` y la reserva espera. Si después el CRS la cambia a algo que Opera acepta,
   esa versión entra y resuelve sola la causa de la anterior.

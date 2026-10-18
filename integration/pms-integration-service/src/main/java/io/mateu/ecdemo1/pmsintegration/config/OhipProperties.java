@@ -12,8 +12,9 @@ import java.time.Duration;
  * @param externalSystemCode the context the CRS's locator goes under as a reservation's external
  *                           reference: it qualifies every external reference this adapter writes and
  *                           searches by. The demo's is {@code ECDEMO1}, or {@code ECDEMO1-<MMddHHmm>} — a new
- *                           one each time ec1 is put back to zero (deploy/demo/zero.sh): Opera is never
- *                           cleaned and a new locator must not find an old run's reservation
+ *                           one each time ec1 is put back to zero (deploy/demo/zero.sh, reset-demo): an
+ *                           earlier run's reservations are cancelled, not deleted, and a new locator
+ *                           must not find one
  * @param versionUdf         the numeric UDF of the reservation that carries the CRS version written
  *                           — the order guard (HLA R18, R28)
  * @param payAtHotelMethod   the payment method a reservation with no payment is recorded with.

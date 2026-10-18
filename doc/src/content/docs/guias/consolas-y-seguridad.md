@@ -13,7 +13,7 @@ description: Los hosts, cómo se federan las pantallas de cada servicio, qué co
 Y además `front.ec1.mateu.io`, el front office del hotel (Redwood), con su propio agente de chat.
 
 Las consolas Redwood son los **mismos módulos** compilados con **`-Predwood`**: ese perfil de Maven
-pone `io.mateu:redwood` en el classpath donde el build por defecto tiene `io.mateu:vaadin-lit`, y nada
+pone `io.mateu:mateu-redwood` en el classpath donde el build por defecto tiene `io.mateu:mateu-vaadin`, y nada
 más cambia. Un módulo, dos imágenes (`ec-demo1-shell` y `ec-demo1-shell-redwood`, igual para
 `control-shell`), cada una con su propio `clean package` (ver [Compilar](/desarrollo/compilar/)).
 

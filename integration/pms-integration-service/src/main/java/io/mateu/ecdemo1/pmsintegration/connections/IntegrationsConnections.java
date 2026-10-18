@@ -70,6 +70,16 @@ public class IntegrationsConnections implements Connections {
     }
 
     @Override
+    public Optional<OhipConnection> chain(String pmsHotelCode) {
+        var chain = integrations.get().uri("/integrations/chain-connection").retrieve().body(OhipConnection.class);
+        if (chain == null || chain.gatewayUrl() == null || chain.gatewayUrl().isBlank()) {
+            return Optional.empty();
+        }
+        return Optional.of(new OhipConnection(pmsHotelCode, chain.gatewayUrl(), chain.appKey(), chain.clientId(),
+                chain.clientSecret(), chain.enterpriseId()));
+    }
+
+    @Override
     public List<IntegrationView> integrations() {
         var list = integrations.get().uri("/integrations/views").retrieve()
                 .body(new ParameterizedTypeReference<List<IntegrationView>>() {

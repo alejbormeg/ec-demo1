@@ -20,8 +20,8 @@
 
     <properties>
         <java.version>21</java.version>
-        <mateu.version>3.0-alpha.422</mateu.version>
-        <eventconductor.version>2.25.1</eventconductor.version>
+        <mateu.version>3.0-alpha.430</mateu.version>
+        <eventconductor.version>2.27.1</eventconductor.version>
         <spring-cloud.version>2024.0.0</spring-cloud.version>
         <spring-ai.version>1.0.0</spring-ai.version>
         <!-- Ahead of what Boot 3.4.3 manages (1.18.36), which does not run on a JDK 25 javac. -->
@@ -89,17 +89,17 @@
 
         <dependency>
             <groupId>io.mateu</groupId>
-            <artifactId>mvc-core</artifactId>
+            <artifactId>mateu-mvc</artifactId>
             <version>${mateu.version}</version>
         </dependency>
         <dependency>
             <groupId>io.mateu</groupId>
-            <artifactId>vaadin-lit</artifactId>
+            <artifactId>mateu-vaadin</artifactId>
             <version>${mateu.version}</version>
         </dependency>
         <dependency>
             <groupId>io.mateu</groupId>
-            <artifactId>annotation-processor-mvc</artifactId>
+            <artifactId>mateu-annotation-processor-mvc</artifactId>
             <version>${mateu.version}</version>
         </dependency>
 
@@ -159,7 +159,7 @@
                         </path>
                         <path>
                             <groupId>io.mateu</groupId>
-                            <artifactId>annotation-processor-mvc</artifactId>
+                            <artifactId>mateu-annotation-processor-mvc</artifactId>
                             <version>${mateu.version}</version>
                         </path>
                     </annotationProcessorPaths>

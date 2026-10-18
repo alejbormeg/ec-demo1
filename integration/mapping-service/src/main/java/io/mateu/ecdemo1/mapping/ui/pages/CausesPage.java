@@ -3,6 +3,7 @@ package io.mateu.ecdemo1.mapping.ui.pages;
 import io.mateu.ecdemo1.mapping.queries.CauseQueries;
 import io.mateu.ecdemo1.mapping.store.CauseStatus;
 import io.mateu.ecdemo1.uicommons.paging.DbPaging;
+import io.mateu.uidl.annotations.Action;
 import io.mateu.uidl.annotations.Title;
 import io.mateu.uidl.data.ListingData;
 import io.mateu.uidl.data.SearchRequest;
@@ -67,8 +68,11 @@ public class CausesPage implements Listing<CauseRow>, Searchable, Navigable<Caus
     /**
      * «Descartar» on a waiting process's row, in a cause's page. A row action is dispatched to the
      * listing the page was opened from — this one — with the cause's state and the clicked row: it
-     * opens the cause's discard dialog with that process picked.
+     * opens the cause's discard dialog with that process picked. {@code @Action} because strict action
+     * mode (Mateu 3.0-alpha.426) refuses an unmarked method: the id is advertised by the cause's page,
+     * not by this listing. It draws no button: only {@code @ListToolbarButton} does on a listing.
      */
+    @Action
     public Object discardWaiter(HttpRequest httpRequest) {
         var request = httpRequest.runActionRq();
         var state = request.componentState();

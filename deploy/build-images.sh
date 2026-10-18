@@ -14,13 +14,15 @@
 #
 #   ./deploy/build-images.sh TAG          # one tag for every image; DOCS_TAG for the site
 #
-# linux/amd64 only, matching the nodeSelector every workload here carries: the Karpenter pool can
-# provision arm64 and a single-arch image on an arm64 node is an unschedulable pod, not an error
-# you find out about at build time.
+# linux/amd64 and linux/arm64 (PLATFORMS): ec1 pins every workload to amd64 — the Karpenter pool can
+# provision arm64, and its manifests say which one they want — while deploy/local/up.sh on an Apple
+# Silicon Mac runs an arm64 node. The images only copy a jar onto a multi-arch JRE, so the second
+# platform costs a few seconds, not a second build.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 REGISTRY="${REGISTRY:-miguelperezcolom}"
+PLATFORMS="${PLATFORMS:-linux/amd64,linux/arm64}"
 TAG="${1:?usage: build-images.sh TAG — one tag for every image (there is no default: a forgotten one tagged everything 0.8.0)}"
 
 # By path: the modules are grouped by system (README, "Layout"). The image is named after the
@@ -86,7 +88,7 @@ build_and_push() {  # <module dir> <image name> [maven args...]
   # Vaadin build's leftovers is a Vaadin image with a Redwood name. So every renderer's build
   # is a `clean package` of its own, immediately followed by its image.
   ( cd "$app" && mvn -B -ntp -DskipTests clean package "$@" )
-  docker buildx build --platform linux/amd64 -t "$REGISTRY/$image:$TAG" --push "$app"
+  docker buildx build --platform "$PLATFORMS" -t "$REGISTRY/$image:$TAG" --push "$app"
   PUSHED="${PUSHED:-} $image"
 }
 
@@ -106,7 +108,7 @@ done
 # deploy/manifests/81-docs.yaml pulls it.
 DOCS_TAG="${DOCS_TAG:-0.1.0}"
 echo "── building doc (the documentation site) ──"
-docker buildx build --platform linux/amd64 -t "$REGISTRY/ec-demo1-docs:$DOCS_TAG" --push doc
+docker buildx build --platform "$PLATFORMS" -t "$REGISTRY/ec-demo1-docs:$DOCS_TAG" --push doc
 echo "Pushed $REGISTRY/ec-demo1-docs:$DOCS_TAG"
 
 echo

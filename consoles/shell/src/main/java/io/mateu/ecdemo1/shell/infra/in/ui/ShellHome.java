@@ -38,8 +38,8 @@ import java.util.List;
  * deployment's hostname means rebuilding this image.
  *
  * <p><b>Two renderers, one class.</b> The same module builds the Vaadin console (ec-demo1-shell) and,
- * with {@code -Predwood}, the Redwood one (ec-demo1-shell-redwood): {@code io.mateu:redwood} in
- * place of {@code io.mateu:vaadin-lit}, and nothing else about it is renderer-aware. That is the
+ * with {@code -Predwood}, the Redwood one (ec-demo1-shell-redwood): {@code io.mateu:mateu-redwood} in
+ * place of {@code io.mateu:mateu-vaadin}, and nothing else about it is renderer-aware. That is the
  * point being demonstrated — a {@link RemoteMenu} carries UIDL rather than HTML, so the
  * orchestrator, the forms engine and the demo services render through whichever renderer the shell
  * loaded, with no change on any of them. The two run BESIDE each other, because side by side

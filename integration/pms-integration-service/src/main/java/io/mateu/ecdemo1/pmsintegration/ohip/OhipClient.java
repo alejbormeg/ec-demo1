@@ -236,8 +236,23 @@ public class OhipClient {
         return properties;
     }
 
+    /**
+     * A call with a connection given rather than looked up: for a property no integration names any
+     * more, or yet — the demo's reset cleaning what earlier runs wrote ({@code EarlierRuns}).
+     */
+    public Response getWith(OhipConnection connection, String hotelId, String uri, Object... variables) {
+        return call(connection, HttpMethod.GET, hotelId, uri, null, variables);
+    }
+
+    public Response postWith(OhipConnection connection, String hotelId, String uri, Object body, Object... variables) {
+        return call(connection, HttpMethod.POST, hotelId, uri, body, variables);
+    }
+
     Response call(HttpMethod method, String hotelId, String uri, Object body, Object... variables) {
-        var connection = connection(hotelId);
+        return call(connection(hotelId), method, hotelId, uri, body, variables);
+    }
+
+    Response call(OhipConnection connection, HttpMethod method, String hotelId, String uri, Object body, Object... variables) {
         var rest = rest(connection);
         try {
             return exchange(rest, connection, method, hotelId, uri, body, variables);

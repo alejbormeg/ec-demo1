@@ -47,7 +47,7 @@ spec:
             capabilities: { drop: ["ALL"] }
       containers:
         - name: loyalty
-          image: miguelperezcolom/ec-demo1-loyalty:0.75.0
+          image: miguelperezcolom/ec-demo1-loyalty:0.76.0
           env:
             - name: OTEL_SERVICE_NAME
               value: loyalty
