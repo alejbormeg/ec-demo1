@@ -34,10 +34,12 @@ public class CreateAgentUseCase {
         if (!llmRepository.existsById(llmId)) {
             throw new IllegalArgumentException("No LLM with id '" + command.llmId() + "'");
         }
-        repository.save(Agent.of(id, new Name(command.name()),
+        var agent = Agent.of(id, new Name(command.name()),
                 new SystemPrompt(command.systemPrompt()), llmId,
                 ids(command.mcpIds(), McpId::new), ids(command.ragIds(), RagId::new),
-                ids(command.peerAgentIds(), AgentId::new), command.description()));
+                ids(command.peerAgentIds(), AgentId::new), command.description());
+        agent.defineOutputSchema(command.outputSchema());
+        repository.save(agent);
         return id.value();
     }
 

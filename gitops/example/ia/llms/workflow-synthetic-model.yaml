@@ -1,0 +1,9 @@
+kind: llm
+id: workflow-synthetic-model
+name: Synthetic workflow model
+provider: OPENAI_COMPATIBLE
+model: synthetic-workflow-model
+baseUrl: http://workflow-model-mock:8080/v1
+temperature: 0.0
+maxTokens: 1024
+credentialEnv: WORKFLOW_SYNTHETIC_MODEL_KEY

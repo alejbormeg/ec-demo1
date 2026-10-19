@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 
 /**
  * What the other three catalogues are for: a prompt, one model, and the tools and sources it may
@@ -54,6 +55,17 @@ public class Agent extends AggregateRoot {
     String description;
     Enabled enabled;
     Time created;
+    Map<String, Object> outputSchema;
+
+    public Agent(AgentId id, Name name, SystemPrompt systemPrompt, LlmId llmId,
+                 List<McpId> mcpIds, List<RagId> ragIds, List<AgentId> peerAgentIds,
+                 String description, Enabled enabled, Time created) {
+        this(id, name, systemPrompt, llmId, mcpIds, ragIds, peerAgentIds, description, enabled, created, null);
+    }
+
+    public void defineOutputSchema(Map<String, Object> schema) {
+        this.outputSchema = schema == null ? null : java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<>(schema));
+    }
 
     public static Agent of(AgentId id, Name name, SystemPrompt systemPrompt, LlmId llmId,
                            List<McpId> mcpIds, List<RagId> ragIds, List<AgentId> peerAgentIds,

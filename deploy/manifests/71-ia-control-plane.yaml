@@ -68,6 +68,12 @@ spec:
               valueFrom: { secretKeyRef: { name: ec-cp-postgres, key: POSTGRES_USER } }
             - name: DB_PASSWORD
               valueFrom: { secretKeyRef: { name: ec-cp-postgres, key: POSTGRES_PASSWORD } }
+            # Workflow catalogue/snapshot endpoints validate the technical client's JWT directly.
+            - { name: WORKFLOW_JWT_ISSUER, value: "https://auth.ec1.mateu.io/realms/ec-demo1" }
+            - { name: WORKFLOW_JWT_JWK_SET_URI, value: "http://keycloak:8080/realms/ec-demo1/protocol/openid-connect/certs" }
+            - { name: WORKFLOW_JWT_AUDIENCE, value: workflow-agent-executor }
+            - { name: WORKFLOW_JWT_CLIENT_ID, value: workflow-agent-executor }
+            - { name: WORKFLOW_A2A_BASE_URL, value: "http://ia-workflow-worker:8095" }
             # AES-256 key for the stored LLM credentials, base64 of 32 bytes. Generated once by
             # deploy.sh into deploy/.secrets/credentials.env and kept there: rotating it makes
             # every stored credential undecryptable, because nothing here re-wraps them.

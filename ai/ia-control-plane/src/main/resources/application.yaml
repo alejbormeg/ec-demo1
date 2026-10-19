@@ -24,6 +24,14 @@ spring:
     show-sql: false
 
 cp:
+  workflow:
+    runtime-url: ${WORKFLOW_RUNTIME_URL:http://ia-workflow-worker:8095}
+    a2a-base-url: ${WORKFLOW_A2A_BASE_URL:http://ia-workflow-worker:8095}
+    security:
+      issuer: ${WORKFLOW_JWT_ISSUER:}
+      jwk-set-uri: ${WORKFLOW_JWT_JWK_SET_URI:}
+      audience: ${WORKFLOW_JWT_AUDIENCE:workflow-agent-executor}
+      client-id: ${WORKFLOW_JWT_CLIENT_ID:workflow-agent-executor}
   # Where the agents answer A2A calls: a peer's URL in a resolved configuration is this plus
   # /a2a/{agentId}. Any ia-agent pod serves any agent there, so one address covers them all.
   a2a-base-url: ${A2A_BASE_URL:http://ia-agent:8095}

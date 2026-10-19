@@ -419,6 +419,14 @@ spring:
             - Host=${CONTROL_HOST:console.ec1.mateu.io},${RW_CONTROL_HOST:rw-console.ec1.mateu.io}
             - Path=/_workflow-admin/**
 
+        # Agent choices for the native workflow editor, metadata only. Resolved credentials stay
+        # on the registry's authenticated internal API.
+        - id: workflow-agent-catalogue
+          uri: ${ORCHESTRATOR_URL:http://orchestrator:8105}
+          predicates:
+            - Host=${CONTROL_HOST:console.ec1.mateu.io},${RW_CONTROL_HOST:rw-console.ec1.mateu.io}
+            - Path=/api/workflow-agents
+
         - id: forms-admin
           uri: ${FORMS_URL:http://forms:8106}
           predicates:

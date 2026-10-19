@@ -172,9 +172,12 @@ def check(contracts, definitions, source, cluster=False):
     referenced = set()
     for did, steps in sorted(definitions.items()):
         for step in steps:
-            if step.get("type") != "ACTION":
+            if step.get("type") not in ("ACTION", "AGENT"):
                 continue
-            task = step.get("task")
+            # Native AGENT is dispatched by the engine as the fixed run-agent task. A workflow
+            # cannot substitute an arbitrary worker/topic for this catalogue-governed step.
+            is_agent = step.get("type") == "AGENT"
+            task = "run-agent@1" if is_agent else step.get("task")
             if not task:
                 # No task: the engine sends no taskId and the SDK (2.23.1) serves the step id as a
                 # contract id. Fine if some worker does, on the step's topic; a gap otherwise.
@@ -190,7 +193,7 @@ def check(contracts, definitions, source, cluster=False):
                 gaps.append(f"{did}/{step['id']}: task {task} has no contract")
                 continue
             referenced.add(ref)
-            topic = step.get("topic") or contracts.get(ref)
+            topic = "agent-calls" if is_agent else step.get("topic") or contracts.get(ref)
             if not topic:
                 gaps.append(f"{did}/{step['id']}: {ref} has no topic (neither the step nor its contract says one)")
                 continue

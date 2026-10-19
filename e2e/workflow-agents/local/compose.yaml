@@ -1,0 +1,203 @@
+name: ec-workflow-agent-local
+
+services:
+  engine-db:
+    image: postgres:16-alpine
+    env_file:
+      - ${LOCAL_STATE_DIR}/engine-db.env
+    environment:
+      POSTGRES_DB: workflow
+      POSTGRES_USER: workflow
+    volumes:
+      - engine-data:/var/lib/postgresql/data
+      - ./db-init.sh:/docker-entrypoint-initdb.d/10-runtime.sh:ro
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U workflow -d workflow']
+      interval: 3s
+      timeout: 3s
+      retries: 40
+    mem_limit: 512m
+
+  catalogue-db:
+    image: pgvector/pgvector:pg16
+    env_file:
+      - ${LOCAL_STATE_DIR}/catalogue-db.env
+    environment:
+      POSTGRES_DB: controlplane
+      POSTGRES_USER: controlplane
+    volumes:
+      - catalogue-data:/var/lib/postgresql/data
+      - ../seed.sql:/docker-entrypoint-initdb.d/10-synthetic-handbook.sql:ro
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U controlplane -d controlplane']
+      interval: 3s
+      timeout: 3s
+      retries: 40
+    mem_limit: 512m
+
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v24.2.21
+    command:
+      - redpanda
+      - start
+      - --mode=dev-container
+      - --smp=1
+      - --memory=512M
+      - --reserve-memory=0M
+      - --node-id=0
+      - --check=false
+      - --kafka-addr=internal://0.0.0.0:9092
+      - --advertise-kafka-addr=internal://redpanda:9092
+    volumes:
+      - kafka-data:/var/lib/redpanda/data
+    healthcheck:
+      test: [CMD, rpk, cluster, health, --exit-when-healthy]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+    mem_limit: 768m
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    command: [start-dev, --import-realm]
+    env_file:
+      - ${LOCAL_STATE_DIR}/keycloak-bootstrap.env
+    environment:
+      KC_HOSTNAME: http://localhost:18080
+      KC_HOSTNAME_STRICT: "false"
+      KC_HEALTH_ENABLED: "true"
+      JAVA_OPTS_KC_HEAP: -Xms128m -Xmx512m
+    volumes:
+      - keycloak-data:/opt/keycloak/data
+      - ${LOCAL_STATE_DIR}/keycloak-import:/opt/keycloak/data/import:ro
+    ports:
+      - 127.0.0.1:18080:8080
+    mem_limit: 768m
+
+  fixtures:
+    image: python:3.12-alpine
+    command: [python, /fixture/fixture_server.py, --port, "8080", --ledger, /data/effects.sqlite, --catalogue-archive, /fixture/catalogue.tar.gz]
+    volumes:
+      - ../fixture_server.py:/fixture/fixture_server.py:ro
+      - ${LOCAL_STATE_DIR}/catalogue.tar.gz:/fixture/catalogue.tar.gz:ro
+      - fixture-data:/data
+    networks:
+      default:
+        aliases: [workflow-model-mock, workflow-embedding-mock, workflow-mcp-mock]
+    ports:
+      - 127.0.0.1:18090:8080
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8080/health',timeout=2)"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    mem_limit: 128m
+
+  ia-control-plane:
+    image: local/ec-workflow-agent-control-plane:acceptance
+    build:
+      context: ${LOCAL_STATE_DIR}/jars
+      dockerfile: ${DEMO_REPO}/e2e/workflow-agents/local/Dockerfile.app
+      args:
+        JAR: ia-control-plane.jar
+    environment:
+      DB_URL: jdbc:postgresql://catalogue-db:5432/controlplane
+      DB_USERNAME: controlplane
+      DB_PASSWORD: ${CATALOGUE_DB_PASSWORD}
+      CP_CRYPTO_KEY: ${CP_CRYPTO_KEY}
+      GITOPS_ENABLED: "true"
+      GITOPS_REPO: local/ec-ia-config
+      GITOPS_BRANCH: feat/workflow-agent-step
+      GITOPS_PATH: ia
+      GITOPS_API_BASE: http://fixtures:8080
+      GITOPS_SYNC_ON_STARTUP: "true"
+      GITOPS_POLL_ENABLED: "false"
+      WORKFLOW_SYNTHETIC_MODEL_KEY: synthetic-local-only
+      WORKFLOW_SYNTHETIC_EMBEDDING_KEY: synthetic-local-only
+      WORKFLOW_SYNTHETIC_RAG_URL: jdbc:postgresql://catalogue-db:5432/controlplane?user=controlplane&password=${CATALOGUE_DB_PASSWORD}
+      WORKFLOW_JWT_ISSUER: http://localhost:18080/realms/workflow-agents
+      WORKFLOW_JWT_JWK_SET_URI: http://keycloak:8080/realms/workflow-agents/protocol/openid-connect/certs
+      WORKFLOW_JWT_AUDIENCE: workflow-agent-executor
+      WORKFLOW_JWT_CLIENT_ID: workflow-agent-executor
+      WORKFLOW_A2A_BASE_URL: http://ia-workflow-worker:8095
+      WORKFLOW_RUNTIME_URL: http://ia-workflow-worker:8095
+      TRACING_SAMPLING: "0"
+    ports:
+      - 127.0.0.1:18110:8110
+    depends_on:
+      catalogue-db: {condition: service_healthy}
+      fixtures: {condition: service_healthy}
+      keycloak: {condition: service_started}
+    mem_limit: 1g
+
+  ia-workflow-worker:
+    image: local/ec-workflow-agent-runtime:acceptance
+    build:
+      context: ${LOCAL_STATE_DIR}/jars
+      dockerfile: ${DEMO_REPO}/e2e/workflow-agents/local/Dockerfile.app
+      args:
+        JAR: ia-agent.jar
+    environment:
+      SPRING_PROFILES_ACTIVE: workflow
+      DB_URL: jdbc:postgresql://engine-db:5432/agent_executions
+      DB_USERNAME: agent_worker
+      DB_PASSWORD: ${RUNTIME_DB_PASSWORD}
+      KAFKA_BROKERS: redpanda:9092
+      IA_CONTROL_PLANE_URL: http://ia-control-plane:8110
+      WORKFLOW_AGENT_TOKEN_URI: http://keycloak:8080/realms/workflow-agents/protocol/openid-connect/token
+      WORKFLOW_AGENT_CLIENT_ID: workflow-agent-executor
+      WORKFLOW_AGENT_CLIENT_SECRET: ${WORKFLOW_AGENT_CLIENT_SECRET}
+      KEYCLOAK_ISSUER_URI: http://localhost:18080/realms/workflow-agents
+      KEYCLOAK_JWKS_URI: http://keycloak:8080/realms/workflow-agents/protocol/openid-connect/certs
+      IA_A2A_BASE_URL: http://ia-workflow-worker:8095
+      IA_CAPTURE_CONTENT: none
+      TRACING_SAMPLING: "0"
+    ports:
+      - 127.0.0.1:18095:8095
+    depends_on:
+      engine-db: {condition: service_healthy}
+      redpanda: {condition: service_healthy}
+      ia-control-plane: {condition: service_started}
+    mem_limit: 1g
+
+  orchestrator:
+    image: local/ec-workflow-agent-engine:acceptance
+    build:
+      context: ${LOCAL_STATE_DIR}/jars
+      dockerfile: ${DEMO_REPO}/e2e/workflow-agents/local/Dockerfile.app
+      args:
+        JAR: orchestrator.jar
+    environment:
+      DB_URL: jdbc:postgresql://engine-db:5432/workflow
+      DB_USERNAME: workflow
+      DB_PASSWORD: ${ENGINE_DB_PASSWORD}
+      KAFKA_BROKERS: redpanda:9092
+      KAFKA_MIN_PARTITIONS: "1"
+      KAFKA_CONCURRENCY: "1"
+      DB_POOL_SIZE: "8"
+      SECURITY_ENABLED: "true"
+      SECURITY_USER: local-operator
+      SECURITY_PASSWORD: ${ENGINE_HTTP_PASSWORD}
+      WORKFLOW_DEFINITIONS_DIRS: /definitions
+      TASKS_DIRECTORYIMPORT_DIRECTORIES: /definitions
+      WORKFLOW_AGENTS_CATALOGUE_URL: http://ia-control-plane:8110/internal/workflow-agents
+      WORKFLOW_AGENTS_TOKEN_URI: http://keycloak:8080/realms/workflow-agents/protocol/openid-connect/token
+      WORKFLOW_AGENTS_CLIENT_ID: workflow-agent-executor
+      WORKFLOW_AGENTS_CLIENT_SECRET: ${WORKFLOW_AGENT_CLIENT_SECRET}
+      TRACING_SAMPLING: "0"
+    volumes:
+      - ${LOCAL_STATE_DIR}/definitions:/definitions:ro
+    ports:
+      - 127.0.0.1:18105:8105
+    depends_on:
+      engine-db: {condition: service_healthy}
+      redpanda: {condition: service_healthy}
+      ia-control-plane: {condition: service_started}
+    mem_limit: 1536m
+
+volumes:
+  engine-data:
+  catalogue-data:
+  kafka-data:
+  keycloak-data:
+  fixture-data:

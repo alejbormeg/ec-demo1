@@ -1,0 +1,7 @@
+kind: llm
+id: workflow-synthetic-embeddings
+name: Synthetic workflow embeddings
+provider: OPENAI_COMPATIBLE
+model: synthetic-embeddings
+baseUrl: http://workflow-embedding-mock:8080/v1
+credentialEnv: WORKFLOW_SYNTHETIC_EMBEDDING_KEY

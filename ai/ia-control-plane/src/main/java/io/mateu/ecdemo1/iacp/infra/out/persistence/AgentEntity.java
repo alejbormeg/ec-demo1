@@ -45,6 +45,8 @@ public class AgentEntity {
     String peerAgentIds;
     @Column(length = 2048)
     String description;
+    @Column(columnDefinition = "text")
+    String outputSchema;
     boolean enabled;
     LocalDateTime created;
 }

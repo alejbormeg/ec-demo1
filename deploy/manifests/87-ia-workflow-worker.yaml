@@ -1,0 +1,89 @@
+# Opt-in workflow runtime. Build the branch's ia-agent image before enabling this deployment.
+# Chat keeps its existing profile, Service and database-free lifecycle.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ia-workflow-worker
+  namespace: ec-demo1
+  labels: { app: ia-workflow-worker }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: ia-workflow-worker } }
+  template:
+    metadata:
+      labels:
+        app: ia-workflow-worker
+        app.kubernetes.io/component: ia-workflow-worker
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /actuator/prometheus
+        prometheus.io/port: "8095"
+    spec:
+      nodeSelector:
+        topology.kubernetes.io/region: hel1
+        kubernetes.io/arch: amd64
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile: { type: RuntimeDefault }
+      initContainers:
+        - name: wait-for-database
+          image: postgres:16
+          command: [sh, -c, 'until pg_isready -h postgres -d agent_executions; do sleep 2; done']
+          securityContext:
+            runAsUser: 70
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+      containers:
+        - name: ia-workflow-worker
+          image: miguelperezcolom/ec-demo1-ia-agent:workflow-agent-step
+          env:
+            - { name: SPRING_PROFILES_ACTIVE, value: workflow }
+            - { name: SERVER_PORT, value: "8095" }
+            - { name: KAFKA_BROKERS, value: "redpanda:19092" }
+            - { name: IA_CONTROL_PLANE_URL, value: "http://ia-control-plane:8110" }
+            - { name: DB_URL, value: "jdbc:postgresql://postgres:5432/agent_executions" }
+            - name: DB_USERNAME
+              valueFrom: { secretKeyRef: { name: ec-workflow-agent-database, key: POSTGRES_USER } }
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: ec-workflow-agent-database, key: POSTGRES_PASSWORD } }
+            - { name: WORKFLOW_AGENT_TOKEN_URI, value: "http://keycloak:8080/realms/ec-demo1/protocol/openid-connect/token" }
+            - { name: WORKFLOW_AGENT_CLIENT_ID, value: workflow-agent-executor }
+            - name: WORKFLOW_AGENT_CLIENT_SECRET
+              valueFrom: { secretKeyRef: { name: ec-workflow-agent, key: WORKFLOW_AGENT_CLIENT_SECRET } }
+            - { name: KEYCLOAK_ISSUER_URI, value: "https://auth.ec1.mateu.io/realms/ec-demo1" }
+            - { name: KEYCLOAK_JWKS_URI, value: "http://keycloak:8080/realms/ec-demo1/protocol/openid-connect/certs" }
+            - { name: IA_A2A_BASE_URL, value: "http://ia-workflow-worker:8095" }
+            - { name: IA_A2A_MAX_DEPTH, value: "2" }
+            - { name: IA_CAPTURE_CONTENT, value: none }
+            - { name: OTEL_SERVICE_NAME, value: ia-workflow-worker }
+            - { name: OTLP_TRACING_ENDPOINT, value: "http://tempo.observability.svc.cluster.local:4318/v1/traces" }
+            - { name: TRACING_SAMPLING, value: "1.0" }
+          ports: [{ name: http, containerPort: 8095 }]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          resources:
+            requests: { memory: 768Mi, cpu: 250m }
+            limits: { memory: 2Gi, cpu: "2" }
+          volumeMounts: [{ name: tmp, mountPath: /tmp }]
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: http }
+            initialDelaySeconds: 20
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            initialDelaySeconds: 60
+            timeoutSeconds: 5
+      volumes: [{ name: tmp, emptyDir: {} }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ia-workflow-worker
+  namespace: ec-demo1
+  labels: { app: ia-workflow-worker }
+spec:
+  selector: { app: ia-workflow-worker }
+  ports: [{ name: http, port: 8095, targetPort: http }]

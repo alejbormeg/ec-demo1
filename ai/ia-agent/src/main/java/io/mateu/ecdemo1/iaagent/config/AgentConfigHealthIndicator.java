@@ -24,6 +24,7 @@ import org.springframework.stereotype.Component;
  * <p>It is also the pod's refresh loop, which is not obvious from the name. See {@link #health()}.
  */
 @Component("agentConfiguration")
+@org.springframework.context.annotation.Profile("!workflow")
 public class AgentConfigHealthIndicator implements HealthIndicator {
 
     private final AgentConfigClient client;

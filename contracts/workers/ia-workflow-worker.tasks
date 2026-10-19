@@ -1,0 +1,2 @@
+# ia-workflow-worker: native AGENT steps use the durable run-agent wire adapter.
+run-agent@1 agent-calls

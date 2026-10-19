@@ -78,6 +78,10 @@ public class AgentViewModel implements CatalogueEditor<AgentDto>, OptionsSupplie
             + "agent reports a failed tool call or invents an answer around it.")
     String systemPrompt;
 
+    @Multiline
+    @Help("Optional JSON output schema. Required for agents published for workflow execution. Console edits do not publish workflow capabilities.")
+    String outputSchema;
+
     @Section("Tools and sources")
     @Stereotype(FieldStereotype.checkbox)
     @Label("MCP servers")
@@ -114,12 +118,12 @@ public class AgentViewModel implements CatalogueEditor<AgentDto>, OptionsSupplie
 
     public String create(HttpRequest httpRequest) {
         return createAgentUseCase.handle(new CreateAgentCommand(newId, name, systemPrompt, llmId,
-                mcpIds, ragIds, peerAgentIds, description));
+                mcpIds, ragIds, peerAgentIds, description, io.mateu.ecdemo1.iacp.infra.out.persistence.JsonDocuments.readMap(outputSchema)));
     }
 
     public void save(HttpRequest httpRequest) {
         updateAgentUseCase.handle(new UpdateAgentCommand(id, name, systemPrompt, llmId,
-                mcpIds, ragIds, peerAgentIds, description, enabled));
+                mcpIds, ragIds, peerAgentIds, description, enabled, io.mateu.ecdemo1.iacp.infra.out.persistence.JsonDocuments.readMap(outputSchema)));
     }
 
     /**
@@ -190,6 +194,7 @@ public class AgentViewModel implements CatalogueEditor<AgentDto>, OptionsSupplie
         ragIds = new ArrayList<>(dto.ragIds());
         peerAgentIds = new ArrayList<>(dto.peerAgentIds());
         enabled = dto.enabled();
+        outputSchema = io.mateu.ecdemo1.iacp.infra.out.persistence.JsonDocuments.write(dto.outputSchema());
         lastPreview = null;
         return this;
     }

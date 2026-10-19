@@ -19,6 +19,7 @@ import java.util.Optional;
 public class RagDBRepository implements RagRepository {
 
     final RagEntityRepository entities;
+    final ProtectedRagConnections connections;
 
     @Override
     public Rag save(Rag rag) {
@@ -26,7 +27,7 @@ public class RagDBRepository implements RagRepository {
         e.setId(rag.getId().value());
         e.setName(rag.getName().value());
         e.setKind(rag.getKind().name());
-        e.setConnectionUrl(rag.getConnectionUrl());
+        e.setConnectionUrl(connections.protect(rag.getConnectionUrl()));
         e.setCollectionName(rag.getCollection());
         e.setEmbeddingLlmId(rag.getEmbeddingLlmId().value());
         e.setTopK(rag.getTopK());
@@ -39,12 +40,12 @@ public class RagDBRepository implements RagRepository {
 
     @Override
     public Optional<Rag> findById(RagId id) {
-        return entities.findById(id.value()).map(RagDBRepository::toDomain);
+        return entities.findById(id.value()).map(this::toDomain);
     }
 
     @Override
     public List<Rag> findAll() {
-        return entities.findAll().stream().map(RagDBRepository::toDomain).toList();
+        return entities.findAll().stream().map(this::toDomain).toList();
     }
 
     @Override
@@ -57,12 +58,12 @@ public class RagDBRepository implements RagRepository {
         return entities.existsById(id.value());
     }
 
-    static Rag toDomain(RagEntity e) {
+    Rag toDomain(RagEntity e) {
         return new Rag(
                 new RagId(e.getId()),
                 new Name(e.getName()),
                 RagKind.valueOf(e.getKind()),
-                e.getConnectionUrl(),
+                connections.reveal(e.getConnectionUrl()),
                 e.getCollectionName(),
                 new LlmId(e.getEmbeddingLlmId()),
                 e.getTopK(),

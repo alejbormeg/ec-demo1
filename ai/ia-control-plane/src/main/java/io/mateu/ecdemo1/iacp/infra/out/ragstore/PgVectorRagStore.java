@@ -127,8 +127,8 @@ public class PgVectorRagStore implements RagStore {
                 store.afterPropertiesSet();
                 return store;
             } catch (Exception e) {
-                throw new UnsupportedStoreException("Could not open '" + rag.getName()
-                        + "' at " + rag.getConnectionUrl() + ": " + rootMessage(e), e);
+                throw new UnsupportedStoreException("Could not open RAG source '" + rag.getId()
+                        + "'. Check the protected store connection and database availability.");
             }
         });
     }

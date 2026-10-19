@@ -29,7 +29,7 @@ public class RagEntity {
     String name;
     @Column(nullable = false)
     String kind;
-    @Column(length = 2048)
+    @Column(columnDefinition = "text")
     String connectionUrl;
     String collectionName;
     String embeddingLlmId;
