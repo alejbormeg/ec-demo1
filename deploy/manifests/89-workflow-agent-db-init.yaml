@@ -1,0 +1,51 @@
+# The workflow runtime owns its own database/login, not the engine's tables or the AI catalogue.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: workflow-agent-db-init
+  namespace: ec-demo1
+spec:
+  backoffLimit: 4
+  activeDeadlineSeconds: 600
+  template:
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        topology.kubernetes.io/region: hel1
+        kubernetes.io/arch: amd64
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 70
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: create-database
+          image: postgres:16
+          env:
+            - { name: PGHOST, value: postgres }
+            - { name: PGDATABASE, value: workflow }
+            - name: PGUSER
+              valueFrom: { secretKeyRef: { name: ec-postgres, key: POSTGRES_USER } }
+            - name: PGPASSWORD
+              valueFrom: { secretKeyRef: { name: ec-postgres, key: POSTGRES_PASSWORD } }
+            - name: AGENT_PASSWORD
+              valueFrom: { secretKeyRef: { name: ec-workflow-agent-database, key: POSTGRES_PASSWORD } }
+          command:
+            - sh
+            - -ec
+            - |
+              until pg_isready -q; do sleep 2; done
+              psql -v ON_ERROR_STOP=1 -v agent_password="$AGENT_PASSWORD" <<'SQL'
+              SELECT 'CREATE ROLE agent_worker LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE'
+              WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'agent_worker') \gexec
+              ALTER ROLE agent_worker PASSWORD :'agent_password';
+              SELECT 'CREATE DATABASE agent_executions OWNER agent_worker'
+              WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'agent_executions') \gexec
+              REVOKE ALL ON DATABASE agent_executions FROM PUBLIC;
+              GRANT CONNECT ON DATABASE agent_executions TO agent_worker;
+              SQL
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+          resources:
+            requests: { memory: 64Mi, cpu: 50m }
+            limits: { memory: 128Mi }

@@ -33,6 +33,7 @@ public class AgentDBRepository implements AgentRepository {
         e.setRagIds(IdList.join(agent.getRagIds().stream().map(RagId::value).toList()));
         e.setPeerAgentIds(IdList.join(agent.getPeerAgentIds().stream().map(AgentId::value).toList()));
         e.setDescription(agent.getDescription());
+        e.setOutputSchema(JsonDocuments.write(agent.getOutputSchema()));
         e.setEnabled(agent.getEnabled().value());
         e.setCreated(agent.getCreated().value());
         entities.save(e);
@@ -70,6 +71,6 @@ public class AgentDBRepository implements AgentRepository {
                 IdList.split(e.getPeerAgentIds()).stream().map(AgentId::new).toList(),
                 e.getDescription(),
                 new Enabled(e.isEnabled()),
-                new Time(e.getCreated()));
+                new Time(e.getCreated()), JsonDocuments.readMap(e.getOutputSchema()));
     }
 }

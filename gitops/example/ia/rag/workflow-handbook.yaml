@@ -1,0 +1,9 @@
+kind: rag
+id: workflow-handbook
+name: Synthetic workflow handbook
+store: PGVECTOR
+connectionEnv: WORKFLOW_SYNTHETIC_RAG_URL
+collection: synthetic_workflow_handbook
+embeddingLlmId: workflow-synthetic-embeddings
+topK: 3
+description: Synthetic case assessment rules. Contains no customer information.

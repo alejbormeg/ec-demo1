@@ -36,6 +36,7 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/a2a/{agentId}")
+@org.springframework.context.annotation.Profile("!workflow")
 public class A2aController {
 
     private static final Logger log = LoggerFactory.getLogger(A2aController.class);

@@ -59,6 +59,17 @@ EOF
 fi
 kubectl label node --all topology.kubernetes.io/region=hel1 --overwrite >/dev/null
 
+# Feature tags are built locally; load them after creating kind and before any rollout waits.
+# Set this switch to false when the four explicit image tags live in a reachable registry.
+if [ "${WORKFLOW_AGENTS_ENABLED:-false}" = true ] && [ "${WORKFLOW_AGENTS_LOAD_LOCAL_IMAGES:-true}" = true ]; then
+  : "${WORKFLOW_AGENT_ENGINE_IMAGE:?Set the locally built workflow engine image}"
+  : "${WORKFLOW_AGENT_IMAGE:?Set the locally built workflow runtime image}"
+  : "${WORKFLOW_AGENT_CONTROL_PLANE_IMAGE:?Set the locally built workflow control-plane image}"
+  : "${WORKFLOW_AGENT_GATEWAY_IMAGE:?Set the locally built workflow gateway image}"
+  kind load docker-image --name "$CLUSTER" "$WORKFLOW_AGENT_ENGINE_IMAGE" "$WORKFLOW_AGENT_IMAGE" \
+    "$WORKFLOW_AGENT_CONTROL_PLANE_IMAGE" "$WORKFLOW_AGENT_GATEWAY_IMAGE"
+fi
+
 # ec1's volumes are hcloud-volumes: here the same name, on kind's local-path provisioner.
 kubectl apply -f - <<'EOF'
 apiVersion: storage.k8s.io/v1

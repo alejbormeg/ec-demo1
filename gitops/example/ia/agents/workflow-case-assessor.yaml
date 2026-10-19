@@ -1,0 +1,23 @@
+# Synthetic workflow root; publish by successful GitOps reconciliation.
+kind: agent
+id: workflow-case-assessor
+name: Synthetic case assessor
+description: Assesses a synthetic case and returns a structured decision.
+llm: workflow-synthetic-model
+systemPrompt: |
+  Assess only the supplied synthetic case. Search the synthetic handbook when
+  necessary and delegate evidence checks to the evidence agent. Return only JSON
+  matching outputSchema. Explain missing evidence; do not invent it.
+mcp: [workflow-case-data]
+rag: [workflow-handbook]
+peers: [workflow-evidence-agent]
+outputSchema:
+  type: object
+  properties:
+    decision:
+      type: string
+      enum: [accepted, review]
+    rationale:
+      type: string
+  required: [decision, rationale]
+  additionalProperties: false

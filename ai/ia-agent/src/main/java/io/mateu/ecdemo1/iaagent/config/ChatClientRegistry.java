@@ -44,6 +44,8 @@ public class ChatClientRegistry {
 
     private static final Logger log = LoggerFactory.getLogger(ChatClientRegistry.class);
 
+    private final Map<String, org.springframework.ai.chat.model.ChatModel> models = new ConcurrentHashMap<>();
+
     private final Map<String, ChatClient> clients = new ConcurrentHashMap<>();
 
     /**
@@ -97,6 +99,18 @@ public class ChatClientRegistry {
                     isBlank(llm.baseUrl()) ? "" : " at " + openAiBaseUrl(llm.baseUrl()));
             return openAiCompatible(llm);
         });
+    }
+
+    /** One provider call, with tool execution controlled by the durable workflow application. */
+    public org.springframework.ai.chat.model.ChatModel modelFor(AgentConfig.Llm llm) {
+        // Reuse exactly the chat validation and options, without entering ChatClient's tool loop.
+        forLlm(llm);
+        var key = llm.provider() + "|" + llm.baseUrl() + "|" + llm.apiKey();
+        return models.computeIfAbsent(key, ignored -> "ANTHROPIC".equals(llm.provider())
+                ? AnthropicChatModel.builder().options(anthropicOptions(llm).build())
+                    .observationRegistry(observationRegistry).build()
+                : OpenAiChatModel.builder().options(openAiOptions(llm).build())
+                    .observationRegistry(observationRegistry).build());
     }
 
     private ChatClient anthropic(AgentConfig.Llm llm) {

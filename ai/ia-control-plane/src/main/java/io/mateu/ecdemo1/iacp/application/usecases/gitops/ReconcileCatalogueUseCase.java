@@ -118,6 +118,7 @@ public class ReconcileCatalogueUseCase {
     private final CatalogueSource source;
     private final CredentialResolver credentials;
     private final GitopsManagedRegistry registry;
+    private final io.mateu.ecdemo1.iacp.application.out.workflow.WorkflowCataloguePublisher workflowPublisher;
 
     private final LlmQueryService llmQuery;
     private final McpQueryService mcpQuery;
@@ -202,11 +203,13 @@ public class ReconcileCatalogueUseCase {
                     id -> llmQuery.getById(id).isPresent(),
                     id -> deleteLlm.handle(new DeleteLlmCommand(List.of(id))), report);
 
+            if (report.failed == 0) workflowPublisher.publish(desired);
+
             log.info("GitOps reconcile ({}) done: {} created, {} updated, {} deleted, {} skipped "
                             + "(console-owned), {} failed.", trigger, report.created, report.updated,
                     report.deleted, report.skipped, report.failed);
         } catch (Exception e) {
-            log.error("GitOps reconcile ({}) failed to read the repo — catalogues left unchanged: {}",
+            log.error("GitOps reconcile ({}) failed; workflow publication requires a complete successful reconcile: {}",
                     trigger, e.toString(), e);
         } finally {
             lock.unlock();
@@ -324,19 +327,24 @@ public class ReconcileCatalogueUseCase {
     private void upsertRag(RagManifest m, Report report) {
         guardAndRun(RAG, m.id(), () -> ragQuery.getById(m.id()).isPresent(), report, exists -> {
             var name = orId(m.name(), m.id());
+            var connection = ragConnection(m);
             if (exists) {
-                updateRag.handle(new UpdateRagCommand(m.id(), name, m.store(), m.connectionUrl(),
+                updateRag.handle(new UpdateRagCommand(m.id(), name, m.store(), connection,
                         m.collection(), m.embeddingLlmId(), m.topK(), m.description(),
                         enabled(m.enabled())));
             } else {
-                createRag.handle(new CreateRagCommand(m.id(), name, m.store(), m.connectionUrl(),
+                createRag.handle(new CreateRagCommand(m.id(), name, m.store(), connection,
                         m.collection(), m.embeddingLlmId(), m.topK(), m.description()));
                 if (!enabled(m.enabled())) {
-                    updateRag.handle(new UpdateRagCommand(m.id(), name, m.store(), m.connectionUrl(),
+                    updateRag.handle(new UpdateRagCommand(m.id(), name, m.store(), connection,
                             m.collection(), m.embeddingLlmId(), m.topK(), m.description(), false));
                 }
             }
         });
+    }
+
+    private String ragConnection(RagManifest manifest) {
+        return io.mateu.ecdemo1.iacp.application.usecases.workflow.ResolveRagConnection.resolve(manifest, credentials);
     }
 
     private void upsertAgent(AgentManifest m, Report report) {
@@ -347,13 +355,13 @@ public class ReconcileCatalogueUseCase {
             var peerIds = m.peers() == null ? List.<String>of() : m.peers();
             if (exists) {
                 updateAgent.handle(new UpdateAgentCommand(m.id(), name, m.systemPrompt(), m.llm(),
-                        mcpIds, ragIds, peerIds, m.description(), enabled(m.enabled())));
+                        mcpIds, ragIds, peerIds, m.description(), enabled(m.enabled()), m.outputSchema()));
             } else {
                 createAgent.handle(new CreateAgentCommand(m.id(), name, m.systemPrompt(), m.llm(),
-                        mcpIds, ragIds, peerIds, m.description()));
+                        mcpIds, ragIds, peerIds, m.description(), m.outputSchema()));
                 if (!enabled(m.enabled())) {
                     updateAgent.handle(new UpdateAgentCommand(m.id(), name, m.systemPrompt(), m.llm(),
-                            mcpIds, ragIds, peerIds, m.description(), false));
+                            mcpIds, ragIds, peerIds, m.description(), false, m.outputSchema()));
                 }
             }
         });

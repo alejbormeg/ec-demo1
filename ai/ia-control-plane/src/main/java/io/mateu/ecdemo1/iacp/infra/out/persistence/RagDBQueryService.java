@@ -19,6 +19,7 @@ import java.util.Optional;
 public class RagDBQueryService implements RagQueryService {
 
     final RagEntityRepository entities;
+    final ProtectedRagConnections connections;
 
     @Override
     public ListingData<RagRow> findAll(String searchText, Object filters, Pageable pageable) {
@@ -36,12 +37,12 @@ public class RagDBQueryService implements RagQueryService {
 
     @Override
     public Optional<RagDto> getById(String id) {
-        return entities.findById(id).map(RagDBQueryService::toDto);
+        return entities.findById(id).map(this::toDto);
     }
 
     @Override
     public List<RagDto> all() {
-        return entities.findAll().stream().map(RagDBQueryService::toDto).toList();
+        return entities.findAll().stream().map(this::toDto).toList();
     }
 
     @Override
@@ -54,9 +55,9 @@ public class RagDBQueryService implements RagQueryService {
         return entities.countByEnabledTrue();
     }
 
-    static RagDto toDto(RagEntity e) {
+    RagDto toDto(RagEntity e) {
         return new RagDto(e.getId(), e.getName(), RagKind.valueOf(e.getKind()),
-                e.getConnectionUrl(), e.getCollectionName(), e.getEmbeddingLlmId(),
+                connections.reveal(e.getConnectionUrl()), e.getCollectionName(), e.getEmbeddingLlmId(),
                 e.getTopK(), e.getDescription(), e.isEnabled(), e.getCreated());
     }
 

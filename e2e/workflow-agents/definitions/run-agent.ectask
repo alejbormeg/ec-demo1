@@ -1,0 +1,11 @@
+id: run-agent
+version: 1
+group: agents
+topic: agent-calls
+description: Execute one catalogue-defined agent invocation with durable tools and JSON output.
+input:
+  __agent:
+    type: object
+    required: true
+    description: Rendered native AGENT envelope; only selected workflow data is included.
+# The engine's agent.outputVariable names the one JSON variable returned by this task.

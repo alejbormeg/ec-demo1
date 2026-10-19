@@ -34,6 +34,7 @@ public class UpdateAgentUseCase {
                 CreateAgentUseCase.ids(command.ragIds(), RagId::new),
                 CreateAgentUseCase.ids(command.peerAgentIds(), AgentId::new),
                 command.description(), new Enabled(command.enabled()));
+        agent.defineOutputSchema(command.outputSchema());
         repository.save(agent);
     }
 }

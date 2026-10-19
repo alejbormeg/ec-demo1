@@ -1,0 +1,76 @@
+# Reconciles the confidential client in fresh AND already imported realms.
+# Run only when WORKFLOW_AGENTS_ENABLED=true. No browser flow or admin role is granted.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: workflow-agent-identity
+  namespace: ec-demo1
+spec:
+  backoffLimit: 4
+  activeDeadlineSeconds: 600
+  template:
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        topology.kubernetes.io/region: hel1
+        kubernetes.io/arch: amd64
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: configure-client
+          image: quay.io/keycloak/keycloak:26.0
+          command:
+            - /bin/bash
+            - -ec
+            - |
+              kcadm=/opt/keycloak/bin/kcadm.sh
+              until "$kcadm" config credentials --config /tmp/kcadm.config \
+                --server http://keycloak:8080 --realm master --user admin \
+                --password "$KEYCLOAK_ADMIN_PASSWORD" >/dev/null 2>&1; do sleep 5; done
+              client_id=$(
+                "$kcadm" get clients --config /tmp/kcadm.config -r ec-demo1 \
+                  -q clientId=workflow-agent-executor --fields id --format csv --noquotes \
+                  | grep -E '^[0-9a-f-]{36}$' | head -n 1 || true
+              )
+              if [ -z "$client_id" ]; then
+                "$kcadm" create clients --config /tmp/kcadm.config -r ec-demo1 \
+                  -s clientId=workflow-agent-executor -s enabled=true -s publicClient=false \
+                  -s serviceAccountsEnabled=true -s standardFlowEnabled=false \
+                  -s directAccessGrantsEnabled=false -s fullScopeAllowed=true \
+                  -s 'defaultClientScopes=["basic","roles"]' -s clientAuthenticatorType=client-secret \
+                  -s 'protocolMappers=[{"name":"workflow-agent-audience","protocol":"openid-connect","protocolMapper":"oidc-audience-mapper","consentRequired":false,"config":{"included.client.audience":"workflow-agent-executor","access.token.claim":"true","id.token.claim":"false"}}]' \
+                  -s "secret=$WORKFLOW_AGENT_CLIENT_SECRET" >/dev/null
+              else
+                "$kcadm" update "clients/$client_id" --config /tmp/kcadm.config -r ec-demo1 \
+                  -s enabled=true -s publicClient=false -s serviceAccountsEnabled=true \
+                  -s standardFlowEnabled=false -s directAccessGrantsEnabled=false \
+                  -s fullScopeAllowed=true -s 'defaultClientScopes=["basic","roles"]' \
+                  -s 'protocolMappers=[{"name":"workflow-agent-audience","protocol":"openid-connect","protocolMapper":"oidc-audience-mapper","consentRequired":false,"config":{"included.client.audience":"workflow-agent-executor","access.token.claim":"true","id.token.claim":"false"}}]' \
+                  -s "secret=$WORKFLOW_AGENT_CLIENT_SECRET" >/dev/null
+              fi
+              if ! "$kcadm" get roles/workflow-agent-executor --config /tmp/kcadm.config \
+                -r ec-demo1 >/dev/null 2>&1; then
+                "$kcadm" create roles --config /tmp/kcadm.config -r ec-demo1 \
+                  -s name=workflow-agent-executor >/dev/null
+              fi
+              "$kcadm" add-roles --config /tmp/kcadm.config -r ec-demo1 \
+                --uusername service-account-workflow-agent-executor \
+                --rolename workflow-agent-executor >/dev/null
+              rm -f /tmp/kcadm.config
+              echo 'Workflow agent service identity reconciled.'
+          env:
+            - name: KEYCLOAK_ADMIN_PASSWORD
+              valueFrom: { secretKeyRef: { name: keycloak-admin, key: password } }
+            - name: WORKFLOW_AGENT_CLIENT_SECRET
+              valueFrom: { secretKeyRef: { name: ec-workflow-agent, key: WORKFLOW_AGENT_CLIENT_SECRET } }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          resources:
+            requests: { memory: 256Mi, cpu: 100m }
+            limits: { memory: 512Mi }
+          volumeMounts: [{ name: tmp, mountPath: /tmp }]
+      volumes: [{ name: tmp, emptyDir: {} }]

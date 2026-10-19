@@ -1,6 +1,7 @@
 package io.mateu.ecdemo1.iacp.application.out.gitops.manifest;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * One agent entry as the repo declares it. {@code llm}, {@code mcp} and {@code rag} are the ids of
@@ -11,5 +12,10 @@ import java.util.List;
  */
 public record AgentManifest(String id, String name, String systemPrompt, String llm,
                             List<String> mcp, List<String> rag, List<String> peers,
-                            String description, Boolean enabled) {
+                            String description, Boolean enabled, Map<String, Object> outputSchema) {
+    public AgentManifest(String id, String name, String systemPrompt, String llm,
+                         List<String> mcp, List<String> rag, List<String> peers,
+                         String description, Boolean enabled) {
+        this(id, name, systemPrompt, llm, mcp, rag, peers, description, enabled, null);
+    }
 }
