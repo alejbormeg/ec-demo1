@@ -606,8 +606,8 @@ test.describe.serial(`demo, UI only (${RENDERER})`, () => {
 
         await ui.go(`${D}/history/search`, /Historial de clientes/)
         await ui.type('Código de cliente', known3.customerId)
-        // the toolbar's «Buscar», not the menu entry of the same name (Redwood shows both)
-        await ui.click(ui.page.getByRole('button', { name: 'Buscar', exact: true }).last(), 5_000)
+        // the form's «Buscar», inside <main>: the breadcrumb and the shell's search palette have one too
+        await ui.click(ui.page.getByRole('main').getByRole('button', { name: 'Buscar', exact: true }).first(), 5_000)
         // «Recepción» is the origin of a stay closed at the desk; the seeded ones say «Demo»
         await ui.waitText(/MRU01[^]{0,400}Recepción|Recepción[^]{0,400}MRU01/,
             'the closed stay never reached the customer history')
