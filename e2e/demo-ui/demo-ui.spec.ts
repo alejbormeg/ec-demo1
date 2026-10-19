@@ -669,7 +669,7 @@ test.describe.serial(`demo, UI only (${RENDERER})`, () => {
         await ui.click(ui.button('Cobrar'), 3_000)
         await ui.waitText(/recibo nº \d+/, 'the till took no advance')
         await expect.poll(async () => {
-            await ui.go(`${FO}/caja/${opera}`, /Saldo pendiente/)
+            await till(ui, opera, 'Cobros y recibos')
             return /Opera: (pendiente|rechazado)/.test(await ui.text())
         }, { message: 'the advance never went to Opera', timeout: 3 * 60_000, intervals: [15_000] }).toBe(true)
 
@@ -696,19 +696,27 @@ test.describe.serial(`demo, UI only (${RENDERER})`, () => {
         }
         // in the house in Opera, the advance that waited goes on its folio
         await expect.poll(async () => {
-            await ui.go(`${FO}/caja/${opera}`, /Saldo pendiente/)
+            await till(ui, opera, 'Cobros y recibos')
             return /Opera: en el folio/.test(await ui.text())
         }, { message: 'the advance never reached Opera\'s folio', timeout: 6 * 60_000, intervals: [20_000] }).toBe(true)
         await ui.checkpoint('f10-advance-in-operas-folio')
 
         // and a refund goes back the same way
+        await till(ui, opera, 'Devolver o anular')
         await ui.click(ui.button('Devolver'), 3_000)
         await expect.poll(async () => {
-            await ui.go(`${FO}/caja/${opera}`, /Saldo pendiente/)
+            await till(ui, opera, 'Cobros y recibos')
             return /Opera: devuelto/.test(await ui.text())
         }, { message: 'the refund never reached Opera\'s folio', timeout: 4 * 60_000, intervals: [20_000] }).toBe(true)
     })
 })
+
+/** The till of a stay, on one of its tabs: each payment's state in Opera is in «Cobros y recibos», the
+ *  refunds in «Devolver o anular» (the first tab, «Cobrar», only takes payments). */
+async function till(ui: Ui, stay: string, tab: string) {
+    await ui.go(`${FO}/caja/${stay}`, /Saldo pendiente/)
+    await ui.click(ui.page.getByRole('tab', { name: tab }).first(), 2_000)
+}
 
 /** What the demo's seeding made known (POST /demo/known-customers, through ec1.py --json). */
 interface Known { stayId: string, guestName: string, customerId: string, riuClass: string, documentType: string,
