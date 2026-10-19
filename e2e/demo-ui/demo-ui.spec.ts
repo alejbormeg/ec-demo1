@@ -88,7 +88,7 @@ test.describe.serial(`demo, UI only (${RENDERER})`, () => {
         await ui.checkpoint('reset-done')
 
         // The data plane is empty.
-        await ui.go(`${D}/booking/bookings`, /\+ 10 reservas demo/)
+        await ui.go(`${D}/booking/bookings`, /Pms reservation id/)
         await ui.checkpoint('bookings-empty')
     })
 
@@ -101,8 +101,8 @@ test.describe.serial(`demo, UI only (${RENDERER})`, () => {
         const ui = new Ui(page, info)
 
         // Ten demo bookings in the CRS (verified live: the toolbar button; the dialog says «Crear»).
-        await ui.go(`${D}/booking/bookings`, /\+ 10 reservas demo/)
-        await ui.click(ui.button('+ 10 reservas demo'), 2_500)
+        await ui.go(`${D}/booking/bookings`, /Pms reservation id/)
+        await ui.action('+ 10 reservas demo')
         await ui.confirmIfAsked(8_000)
         await ui.reload(/Pms reservation id/)
         await ui.waitText(/Confirmed/, 'the 10 demo bookings never showed')
@@ -464,7 +464,8 @@ test.describe.serial(`demo, UI only (${RENDERER})`, () => {
         await ui.go(`${C}/mapping/dictionary?integration=MRU01`, /Crs code/)
         await ui.click(ui.button('Ask the agent'), 4_000)
         const proposed = new RegExp(`${code} \\| 432040HLXMU \\| \\d+ \\| Proposed`)
-        await expect.poll(async () => { await ui.reload(/Crs code/); return ui.pageUntil(proposed) },
+        // Each try from the first page: a reload keeps the ?page=N the paging left in the URL (alpha.424).
+        await expect.poll(async () => { await ui.go(`${C}/mapping/dictionary?integration=MRU01`, /Crs code/); return ui.pageUntil(proposed) },
             { message: `the agent never proposed 432040HLXMU for ${code}`, timeout: 5 * 60_000, intervals: [15_000] }).toBe(true)
         // Approve only that one: select its row first (with nothing selected, Approve takes them all).
         await ui.selectRow('432040HLXMU')
@@ -588,9 +589,15 @@ test.describe.serial(`demo, UI only (${RENDERER})`, () => {
         await ui.click(ui.button('Siguiente'), 4_000)
         await ui.waitText(/Lista · /, 'the check-in never showed the rooms')
         await ui.click(ui.page.getByText(/^\d{3,4}$/).first(), 4_000) // the first room's card: ready ones come first
-        for (let i = 0; i < 2; i++) await ui.click(ui.button('Siguiente'), 3_500)
-        await ui.click(ui.button('Enviar a tablet'), 9_000)
-        await ui.click(ui.button('Confirmar check-in'), 10_000)
+        // then the signature, the extras and the rest, as the wizard asks for them (as in flow 10)
+        let signed = false
+        for (let i = 0; i < 12; i++) {
+            const sign = ui.button('Enviar a tablet')
+            if (!signed && await sign.isVisible().catch(() => false)) { await ui.click(sign, 9_000); signed = true; continue }
+            const confirm = ui.button('Confirmar check-in')
+            if (await confirm.isVisible().catch(() => false)) { await ui.click(confirm, 10_000); break }
+            await ui.click(ui.button('Siguiente'), 3_500)
+        }
         await ui.go(`${FO}/reservas/${byHand}`, /Huéspedes|Check-out/)
         await ui.click(ui.button('Check-out'), 4_000)
         await ui.click(ui.page.getByRole('button', { name: /^Confirmar — / }).first(), 8_000)

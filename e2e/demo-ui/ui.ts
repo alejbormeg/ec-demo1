@@ -76,12 +76,19 @@ export class Ui {
         }
     }
 
-    /** Goes to a URL and waits for `re` in its text. Redwood shells take 30–40 s to boot: 120 s by default. */
+    /**
+     * Goes to a URL and waits for `re` in its text. Redwood shells take 30–40 s to boot: 120 s by default.
+     * The shell sends the browser to Keycloak only once its script runs, which on a slow machine (the
+     * local cluster) is well after the page loads: it signs in whenever the login page turns up.
+     */
     async go(url: string, re: RegExp, timeout = 120_000) {
         await this.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 90_000 })
-        await this.page.waitForTimeout(2_500)
-        await this.signInIfAsked()
-        await this.waitText(re, `${url} never showed ${re}`, timeout)
+        await expect.poll(async () => {
+            if (this.page.url().includes('/realms/') && await this.page.locator('#username').count()) {
+                await this.signInIfAsked()
+            }
+            return re.test(await pageText(this.page))
+        }, { message: `${url} never showed ${re}`, timeout, intervals: [1_000] }).toBe(true)
     }
 
     async waitText(re: RegExp, message: string, timeout = 90_000) {
@@ -92,9 +99,12 @@ export class Ui {
 
     async reload(re: RegExp) {
         await this.page.reload({ waitUntil: 'domcontentloaded' })
-        await this.page.waitForTimeout(2_000)
-        await this.signInIfAsked()
-        await this.waitText(re, `reload never showed ${re}`)
+        await expect.poll(async () => {
+            if (this.page.url().includes('/realms/') && await this.page.locator('#username').count()) {
+                await this.signInIfAsked()
+            }
+            return re.test(await pageText(this.page))
+        }, { message: `reload never showed ${re}`, timeout: 90_000, intervals: [1_000] }).toBe(true)
     }
 
     /** Polls a page (reloading it) until `probe(text)` is truthy; returns that value. */
@@ -116,7 +126,7 @@ export class Ui {
     }
 
     async click(loc: Locator, after = 1_500) {
-        await loc.scrollIntoViewIfNeeded().catch(() => {})
+        await loc.scrollIntoViewIfNeeded({ timeout: 20_000 }).catch(() => {}) // without one it waits for ever
         await loc.click({ timeout: 20_000 })
         await this.page.waitForTimeout(after)
     }
@@ -133,6 +143,19 @@ export class Ui {
             await this.click(this.page.locator('oj-c-menu-button').first())
         }
         await this.click(this.page.getByRole('menuitem', { name: item }).first(), 2_000)
+    }
+
+    /**
+     * A header action that may be a button or an item of the ⋯ menu: Redwood (Mateu alpha.430) draws
+     * the first toolbar action as a button and moves the rest into the menu.
+     */
+    async action(label: string) {
+        const button = this.button(label)
+        if (await button.isVisible().catch(() => false)) {
+            await this.click(button, 2_500)
+        } else {
+            await this.more(label)
+        }
     }
 
     /** The items of the ⋯ menu, then closes it. */

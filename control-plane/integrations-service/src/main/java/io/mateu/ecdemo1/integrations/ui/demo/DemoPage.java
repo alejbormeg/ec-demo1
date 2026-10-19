@@ -228,9 +228,10 @@ public class DemoPage implements io.mateu.uidl.interfaces.VisibilitySupplier {
         var content = new ArrayList<Component>();
         content.add(Notice.builder().theme("contrast").text("Lleva la demo a cero, como deploy/demo/zero.sh pero sin parar nada: "
                 + "reservas, integraciones, mapeos, clientes del MDM, huéspedes y estancias, notificaciones, avisos, auditoría, "
-                + "procesos del motor — y en Salesforce, los contactos y Cases. Se quedan los interlocutores del ERP, las "
-                + "habitaciones y catálogos, las reglas de registro, las definiciones, el contenido y los usuarios. Opera no se "
-                + "limpia: la demo pasa a un contexto nuevo. Un administrador lo confirma en la bandeja antes de borrar nada.")
+                + "procesos del motor — en Salesforce, los contactos y Cases, y en Opera se cancelan las reservas que escribió la "
+                + "demo (sólo ésas; las que están en casa se avisan para un check-out a mano). Se quedan los interlocutores del "
+                + "ERP, las habitaciones y catálogos, las reglas de registro, las definiciones, el contenido y los usuarios; la "
+                + "demo pasa a un contexto de Opera nuevo. Un administrador lo confirma en la bandeja antes de borrar nada.")
                 .build());
         intake.status().ifPresent(i -> {
             if (i.paused()) {
