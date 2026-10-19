@@ -520,6 +520,13 @@ def seed_arriving_opera_today():
     show(locator)
     code, out = opera("rooms", "XMAR", "SJMB")
     free = [line.split("\t")[0] for line in out.splitlines() if "\tInspected\tVacant" in line]
+    if not free:
+        # every check-out the demo makes leaves its room Dirty, and the UAT has no housekeeping: put back
+        # to Inspected the rooms our own check-outs dirtied (no one else's), and look again
+        r = run([sys.executable, str(HERE / "opera-restore-our-rooms.py"), "XMAR", business, "--yes"])
+        print((r.stdout or r.stderr).strip())
+        code, out = opera("rooms", "XMAR", "SJMB")
+        free = [line.split("\t")[0] for line in out.splitlines() if "\tInspected\tVacant" in line]
     print(f"SJMB rooms Opera has inspected and vacant: {', '.join(free[:8]) or 'none — pick another type'}")
     print(f"Check-in / check-out (front office → the stay {locator}): pick one of those rooms (a room only «Limpia, sin "
           f"inspeccionar en Opera» is refused); Opera → «en casa». The check-out is an early departure (Opera's date).")

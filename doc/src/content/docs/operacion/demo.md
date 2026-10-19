@@ -29,6 +29,16 @@ deploy/demo/opera-cancel-ours.py XMAR --yes    # cancela las Reserved / Requeste
 
 El 18-10-2026 canceló 256 en XMAR.
 
+**Las habitaciones que ensucian nuestros check-outs vuelven a «Inspected»**: XMAR solo asigna habitaciones
+inspeccionadas y el UAT no tiene pisos, así que cada check-out de la demo deja la suya sucia hasta que no
+queda ninguna del tipo. `seed arriving-opera-today`, si no encuentra ninguna, devuelve a Inspected las de
+nuestras reservas salidas (por el mismo contexto) que siguen sucias y libres, y ninguna más:
+
+```sh
+deploy/demo/opera-restore-our-rooms.py XMAR 2026-05-13         # las lista (llegada = fecha de negocio de Opera)
+deploy/demo/opera-restore-our-rooms.py XMAR 2026-05-13 --yes   # las devuelve a Inspected
+```
+
 ## La demo vive en un solo sitio
 
 La demo corre **en ec1 o en el [entorno local](/desarrollo/entorno-local/), nunca en los dos a la vez**
