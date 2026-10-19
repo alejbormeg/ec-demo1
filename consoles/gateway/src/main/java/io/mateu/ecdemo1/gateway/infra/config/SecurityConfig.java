@@ -201,6 +201,7 @@ public class SecurityConfig {
                         // /_workflow/** rule further up matches on any host, and a path it caught
                         // would be decided as `authenticated` before this line was ever reached.
                         .matchers(onControlHost("/_ia-cp/**", "/_users/**", "/mateu/**",
+                                "/api/workflow-agents",
                                 "/_workflow-admin/**", "/_forms-admin/**",
                                 // The integration's control plane (PoC ACL): activating a hotel or
                                 // approving a mapping decides what reaches the PMS.

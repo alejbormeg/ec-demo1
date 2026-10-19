@@ -21,6 +21,9 @@ public class ControlPlaneMenu {
     AgentCrudOrchestrator agents;
 
     @Menu
+    io.mateu.ecdemo1.iacp.infra.in.ui.pages.workflow.WorkflowExecutionsPage workflowAgentExecutions;
+
+    @Menu
     LlmCrudOrchestrator llms;
 
     @Menu

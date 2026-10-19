@@ -1,0 +1,27 @@
+# Same image as ia-agent, a separate Deployment and PostgreSQL database.
+workflow:
+  database:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  kafka:
+    brokers: ${KAFKA_BROKERS:localhost:9192}
+    topic: ${WORKFLOW_AGENT_TOPIC:agent-calls}
+    group: ${WORKFLOW_AGENT_GROUP:ia-workflow-worker}
+    replies: ${WORKFLOW_AGENT_REPLIES_TOPIC:upstream}
+  identity:
+    token-uri: ${WORKFLOW_AGENT_TOKEN_URI}
+    client-id: ${WORKFLOW_AGENT_CLIENT_ID:workflow-agent-executor}
+    client-secret: ${WORKFLOW_AGENT_CLIENT_SECRET}
+  jwt:
+    issuer: ${KEYCLOAK_ISSUER_URI}
+    jwks: ${KEYCLOAK_JWKS_URI}
+    audience: ${WORKFLOW_AGENT_AUDIENCE:workflow-agent-executor}
+  max-rounds: ${WORKFLOW_AGENT_MAX_ROUNDS:20}
+  max-tool-calls: ${WORKFLOW_AGENT_MAX_TOOL_CALLS:50}
+management:
+  endpoint:
+    health:
+      group:
+        readiness:
+          include: readinessState

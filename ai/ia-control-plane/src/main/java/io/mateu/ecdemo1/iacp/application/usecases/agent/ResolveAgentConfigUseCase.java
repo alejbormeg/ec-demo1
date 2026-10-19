@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Turns a stored agent into the configuration a running service can act on.
@@ -100,14 +101,19 @@ public class ResolveAgentConfigUseCase {
     public record Resolved(String agentId, String agentName, String agentDescription,
                            String systemPrompt, ResolvedLlm llm, List<ResolvedMcp> mcps,
                            List<ResolvedRag> rags, List<ResolvedPeer> peers,
-                           ResolvedGuardrails guardrails, List<String> warnings) {
+                           ResolvedGuardrails guardrails, List<String> warnings, Map<String, Object> outputSchema) {
+        public Resolved(String agentId, String agentName, String agentDescription, String systemPrompt,
+                        ResolvedLlm llm, List<ResolvedMcp> mcps, List<ResolvedRag> rags, List<ResolvedPeer> peers,
+                        ResolvedGuardrails guardrails, List<String> warnings) {
+            this(agentId, agentName, agentDescription, systemPrompt, llm, mcps, rags, peers, guardrails, warnings, null);
+        }
 
         /** The same configuration, with the guardrails of the route that chose it. */
         public Resolved withGuardrails(ResolvedGuardrails guardrails, List<String> moreWarnings) {
             var all = new ArrayList<>(warnings);
             all.addAll(moreWarnings);
             return new Resolved(agentId, agentName, agentDescription, systemPrompt, llm, mcps, rags,
-                    peers, guardrails, List.copyOf(all));
+                    peers, guardrails, List.copyOf(all), outputSchema);
         }
     }
 
@@ -217,7 +223,7 @@ public class ResolveAgentConfigUseCase {
                         llm.getProvider().name(), llm.getModel().value(), llm.getBaseUrl(),
                         llm.getSampling().temperature(), llm.getSampling().maxTokens(),
                         cipher.decrypt(llm.getCredential().cipherText())),
-                mcps, rags, peers, ResolvedGuardrails.none(), warnings);
+                mcps, rags, peers, ResolvedGuardrails.none(), warnings, agent.getOutputSchema());
     }
 
     /** The A2A endpoint an agent answers at. */

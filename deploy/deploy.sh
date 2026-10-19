@@ -21,6 +21,28 @@ NS=ec-demo1
 OBS_NS=observability
 SECRETS=deploy/.secrets/credentials.env
 
+# Feature images must be built from the matching branches before opting in. This prevents a
+# successful-looking rollout of published images that predate the AGENT protocol.
+WORKFLOW_AGENTS_ENABLED="${WORKFLOW_AGENTS_ENABLED:-false}"
+if [ "$WORKFLOW_AGENTS_ENABLED" = true ]; then
+  : "${WORKFLOW_AGENT_ENGINE_IMAGE:?Set the tagged EventConductor image built from feat/workflow-agent-step}"
+  : "${WORKFLOW_AGENT_IMAGE:?Set the tagged ia-agent image built from feat/workflow-agent-step}"
+  : "${WORKFLOW_AGENT_CONTROL_PLANE_IMAGE:?Set the tagged ia-control-plane image built from feat/workflow-agent-step}"
+  : "${WORKFLOW_AGENT_GATEWAY_IMAGE:?Set the tagged gateway image built from feat/workflow-agent-step}"
+  for workflow_image_var in WORKFLOW_AGENT_ENGINE_IMAGE WORKFLOW_AGENT_IMAGE \
+    WORKFLOW_AGENT_CONTROL_PLANE_IMAGE WORKFLOW_AGENT_GATEWAY_IMAGE; do
+    workflow_image_ref="${!workflow_image_var}"
+    workflow_image_leaf="${workflow_image_ref##*/}"
+    case "$workflow_image_ref" in
+      *@*) echo "$workflow_image_var must use an explicit feature tag." >&2; exit 1 ;;
+    esac
+    case "$workflow_image_leaf" in
+      ?*:?*) ;;
+      *) echo "$workflow_image_var must include a non-empty image name and tag." >&2; exit 1 ;;
+    esac
+  done
+fi
+
 echo "══ 1/6  Cluster prerequisites: ingress controller and certificate issuer ══"
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx >/dev/null 2>&1 || true
 helm repo add jetstack https://charts.jetstack.io >/dev/null 2>&1 || true
@@ -122,6 +144,10 @@ append_if_missing AGENT_DB_PASSWORD "$(openssl rand -base64 24 | tr -d '/+=' | h
 # its own key, and every link already e-mailed or printed stops opening at the next restart; kept
 # once, like the crypto keys above, because rotating it breaks those links the same way.
 append_if_missing FRONT_OFFICE_LINK_SECRET "$(openssl rand -base64 32)"
+if [ "$WORKFLOW_AGENTS_ENABLED" = true ]; then
+  append_if_missing WORKFLOW_AGENT_CLIENT_SECRET "$(openssl rand -hex 32)"
+  append_if_missing WORKFLOW_AGENT_DB_PASSWORD "$(openssl rand -hex 24)"
+fi
 
 # shellcheck disable=SC1090
 set -a; . "$SECRETS"; set +a
@@ -178,7 +204,17 @@ fi
 kubectl create secret generic ec-git-webhook -n "$NS" \
   --from-literal=WORKFLOW_GITIMPORT_WEBHOOKSECRET="$GIT_WEBHOOK_SECRET" \
   --from-literal=FORMS_GITIMPORT_WEBHOOKSECRET="$GIT_WEBHOOK_SECRET" \
+  ${WORKFLOW_AGENT_CLIENT_SECRET:+--from-literal=WORKFLOW_AGENTS_CLIENT_SECRET="$WORKFLOW_AGENT_CLIENT_SECRET"} \
   --dry-run=client -o yaml | kubectl apply -f -
+if [ "$WORKFLOW_AGENTS_ENABLED" = true ]; then
+  kubectl create secret generic ec-workflow-agent -n "$NS" \
+    --from-literal=WORKFLOW_AGENT_CLIENT_SECRET="$WORKFLOW_AGENT_CLIENT_SECRET" \
+    --dry-run=client -o yaml | kubectl apply -f -
+  kubectl create secret generic ec-workflow-agent-database -n "$NS" \
+    --from-literal=POSTGRES_DB=agent_executions --from-literal=POSTGRES_USER=agent_worker \
+    --from-literal=POSTGRES_PASSWORD="$WORKFLOW_AGENT_DB_PASSWORD" \
+    --dry-run=client -o yaml | kubectl apply -f -
+fi
 # The control plane's own database and the key its credentials are encrypted with. Both are
 # generated, unlike the Anthropic key, because both are derived rather than bought.
 kubectl create secret generic ec-cp-postgres -n "$NS" \
@@ -286,8 +322,18 @@ kubectl create secret generic cp-gitops -n "$NS" \
   --dry-run=client -o yaml | kubectl apply -f -
 
 echo "══ 3/6  EventConductor engine (PostgreSQL, Redpanda, orchestrator, forms) ══"
+engine_args=()
+if [ "$WORKFLOW_AGENTS_ENABLED" = true ]; then
+  engine_args=(
+    --set-string "orchestrator.image=${WORKFLOW_AGENT_ENGINE_IMAGE%:*}"
+    --set-string "orchestrator.imageTag=${WORKFLOW_AGENT_ENGINE_IMAGE##*:}"
+    --set-string 'orchestrator.extraEnv.WORKFLOW_AGENTS_CATALOGUE_URL=http://ia-control-plane:8110/internal/workflow-agents'
+    --set-string 'orchestrator.extraEnv.WORKFLOW_AGENTS_TOKEN_URI=http://keycloak:8080/realms/ec-demo1/protocol/openid-connect/token'
+    --set-string 'orchestrator.extraEnv.WORKFLOW_AGENTS_CLIENT_ID=workflow-agent-executor'
+  )
+fi
 helm upgrade --install ec deploy/chart/eventconductor -n "$NS" \
-  -f deploy/values/eventconductor.yaml
+  -f deploy/values/eventconductor.yaml "${engine_args[@]}"
 
 echo "══ 4/6  Keycloak, shells, gateway, ingress, demo services, control plane ══"
 kubectl apply -f deploy/manifests/05-clusterissuer.yaml
@@ -343,6 +389,19 @@ kubectl apply -f deploy/manifests/72-control-shell.yaml
 kubectl apply -f deploy/manifests/73-control-shell-redwood.yaml
 # The catalogued APIs as MCP servers, read from the control plane.
 kubectl apply -f deploy/manifests/74-api-mcp.yaml
+
+if [ "$WORKFLOW_AGENTS_ENABLED" = true ]; then
+  kubectl -n "$NS" set image deployment/ia-control-plane \
+    "ia-control-plane=$WORKFLOW_AGENT_CONTROL_PLANE_IMAGE"
+  kubectl -n "$NS" set image deployment/gateway "gateway=$WORKFLOW_AGENT_GATEWAY_IMAGE"
+  kubectl delete job workflow-agent-identity workflow-agent-db-init -n "$NS" --ignore-not-found
+  kubectl apply -f deploy/manifests/88-workflow-agent-identity.yaml
+  kubectl apply -f deploy/manifests/89-workflow-agent-db-init.yaml
+  kubectl -n "$NS" wait --for=condition=complete job/workflow-agent-identity job/workflow-agent-db-init --timeout=10m
+  kubectl apply -f deploy/manifests/87-ia-workflow-worker.yaml
+  kubectl -n "$NS" set image deployment/ia-workflow-worker \
+    "ia-workflow-worker=$WORKFLOW_AGENT_IMAGE"
+fi
 
 echo "══ 5/6  Observability (Prometheus, Grafana, Loki, Tempo, Alloy) ══"
 # Every chart pinned to the version running on ec1, so a redeploy is not also an unplanned upgrade.
@@ -401,6 +460,13 @@ kubectl rollout status deployment/ia-agent -n "$NS" --timeout=10m
 kubectl rollout status deployment/cp-postgres -n "$NS" --timeout=10m
 kubectl rollout status deployment/ia-control-plane -n "$NS" --timeout=10m
 kubectl rollout status deployment/control-shell -n "$NS" --timeout=10m
+if [ "$WORKFLOW_AGENTS_ENABLED" = true ]; then
+  kubectl rollout status deployment/ia-workflow-worker -n "$NS" --timeout=10m
+  # Retry imports after provisioning. Check GitOps publication/import results separately:
+  # readiness alone does not prove a catalogue or workflow was successfully imported.
+  kubectl rollout restart deployment/ec-eventconductor-orchestrator -n "$NS"
+  kubectl rollout status deployment/ec-eventconductor-orchestrator -n "$NS" --timeout=10m
+fi
 
 cat <<EOF
 

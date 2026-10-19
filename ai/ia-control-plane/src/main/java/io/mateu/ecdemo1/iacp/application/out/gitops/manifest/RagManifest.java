@@ -9,5 +9,10 @@ import io.mateu.ecdemo1.iacp.domain.aggregates.rag.vo.RagKind;
  */
 public record RagManifest(String id, String name, RagKind store, String connectionUrl,
                           String collection, String embeddingLlmId, Integer topK,
-                          String description, Boolean enabled) {
+                          String description, Boolean enabled, String connectionEnv) {
+    public RagManifest(String id, String name, RagKind store, String connectionUrl,
+                       String collection, String embeddingLlmId, Integer topK,
+                       String description, Boolean enabled) {
+        this(id, name, store, connectionUrl, collection, embeddingLlmId, topK, description, enabled, null);
+    }
 }

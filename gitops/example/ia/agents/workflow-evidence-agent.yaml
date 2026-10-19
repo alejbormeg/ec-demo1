@@ -1,0 +1,20 @@
+kind: agent
+id: workflow-evidence-agent
+name: Synthetic evidence agent
+description: Checks supplied synthetic evidence and returns a structured finding.
+llm: workflow-synthetic-model
+systemPrompt: |
+  Check the supplied synthetic evidence using the case-data tool if necessary.
+  Return only JSON matching outputSchema.
+mcp: [workflow-case-data]
+rag: []
+peers: []
+outputSchema:
+  type: object
+  properties:
+    verified:
+      type: boolean
+    explanation:
+      type: string
+  required: [verified, explanation]
+  additionalProperties: false

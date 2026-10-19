@@ -1,0 +1,7 @@
+kind: mcp
+id: workflow-case-data
+name: Synthetic case data
+url: http://workflow-mcp-mock:8080/mcp
+transport: STREAMABLE_HTTP
+timeoutSeconds: 15
+description: Synthetic case lookup and idempotent case updates for workflow tests.

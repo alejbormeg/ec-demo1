@@ -269,17 +269,33 @@
         "enabled": {
           "type": "boolean",
           "default": true
+        },
+        "connectionEnv": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Environment variable containing the complete protected store connection URL. Use exactly one of connectionEnv or connectionUrl."
         }
       },
       "required": [
         "kind",
         "id",
         "store",
-        "connectionUrl",
         "collection",
         "embeddingLlmId"
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "required": [
+            "connectionUrl"
+          ]
+        },
+        {
+          "required": [
+            "connectionEnv"
+          ]
+        }
+      ]
     },
     {
       "title": "Agent",
@@ -331,6 +347,18 @@
         "enabled": {
           "type": "boolean",
           "default": true
+        },
+        "outputSchema": {
+          "type": "object",
+          "description": "JSON output schema required for workflow agents and all their reachable peers. Chat agents may omit it.",
+          "properties": {
+            "type": {
+              "const": "object"
+            }
+          },
+          "required": [
+            "type"
+          ]
         }
       },
       "required": [
@@ -432,7 +460,11 @@
         },
         "channel": {
           "type": "string",
-          "enum": ["data-plane", "control-plane", "front-office"],
+          "enum": [
+            "data-plane",
+            "control-plane",
+            "front-office"
+          ],
           "description": "The console the prompt comes from, as the gateway stamps it from the host (X-Agent-Channel). Omit for any."
         },
         "targetAgent": {

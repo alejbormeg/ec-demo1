@@ -33,6 +33,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/ai/api/agent")
+@org.springframework.context.annotation.Profile("!workflow")
 public class IaAgentController {
 
     private static final Logger log = LoggerFactory.getLogger(IaAgentController.class);

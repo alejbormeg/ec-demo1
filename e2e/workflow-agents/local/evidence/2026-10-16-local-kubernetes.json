@@ -1,0 +1,106 @@
+{
+  "checkedAt": "2026-10-16T13:36:35.078134+00:00",
+  "happy": {
+    "processId": "4cb13984-cb8f-48f3-ad0c-ebc6e36a7c22",
+    "invocationId": "cd09639b-0c54-4ec8-b0a0-8b8ad7b605be",
+    "rootId": "3a8f3c81-25ce-4362-ba78-19798e918707",
+    "snapshotDigest": "c7ecd6e6a96ba5f12422377a811a8cbae65b80672205a3ddd9b51253c32a1eb7",
+    "catalogueRevision": "c7ecd6e6a96ba5f12422377a811a8cbae65b80672205a3ddd9b51253c32a1eb7",
+    "validatedToolContents": true,
+    "explicitInputOnly": true,
+    "agents": [
+      {
+        "id": "workflow-evidence-agent",
+        "status": "COMPLETED",
+        "rounds": 2,
+        "toolKinds": [
+          "mcp"
+        ]
+      },
+      {
+        "id": "workflow-case-assessor",
+        "status": "COMPLETED",
+        "rounds": 4,
+        "toolKinds": [
+          "mcp",
+          "rag",
+          "a2a"
+        ]
+      }
+    ]
+  },
+  "uncertainWrite": {
+    "processId": "1f3b6083-86cf-4354-aa4f-e868b43e33cf",
+    "invocationId": "b6b826d7-4080-4fc5-a2a9-9390c4a9610e",
+    "rootId": "039df6c0-87b9-46be-80e2-a7e04438053a",
+    "snapshotDigest": "c7ecd6e6a96ba5f12422377a811a8cbae65b80672205a3ddd9b51253c32a1eb7",
+    "catalogueRevision": "c7ecd6e6a96ba5f12422377a811a8cbae65b80672205a3ddd9b51253c32a1eb7",
+    "validatedToolContents": true,
+    "explicitInputOnly": true,
+    "agents": [
+      {
+        "id": "workflow-evidence-agent",
+        "status": "COMPLETED",
+        "rounds": 2,
+        "toolKinds": [
+          "mcp"
+        ]
+      },
+      {
+        "id": "workflow-case-assessor",
+        "status": "COMPLETED",
+        "rounds": 4,
+        "toolKinds": [
+          "mcp",
+          "rag",
+          "a2a"
+        ]
+      }
+    ],
+    "reviewedCalls": 2,
+    "writesAfterRestart": 1,
+    "finalWrites": 2
+  },
+  "paidProviders": false,
+  "realIntegrations": false,
+  "environment": {
+    "clusterNode": "ec-demo1-local-control-plane",
+    "namespace": "ec-workflow-agent-test",
+    "backend": "Kubernetes",
+    "runtimeLoopbackPort": 28095
+  },
+  "applicationSources": {
+    "demo": {
+      "commit": "efad2bf6e58014ab30d75fc0a9b08c8a95a0d438",
+      "branch": "feat/workflow-agent-step"
+    },
+    "engine": {
+      "commit": "4117462673c30c53bb8389a2b48d755f73826cb3",
+      "branch": "feat/workflow-agent-step"
+    },
+    "ia": {
+      "commit": "8639fa6a5928308c58786aa4c9468e3c79aad7c2",
+      "branch": "feat/workflow-agent-step"
+    },
+    "definitions": {
+      "commit": "d9c2f62096755124f8e604cee5e490b611df5654",
+      "branch": "feat/workflow-agent-step"
+    }
+  },
+  "applicationJarSha256": {
+    "ia-agent.jar": "189e261705a24276260713f69dda3c87ea49394926826e334a326a65cc89c7b1",
+    "ia-control-plane.jar": "a9ca80b4319fe8dc9a7011547b19620470b7075fd71f30ddec2674b7b084fff8",
+    "orchestrator.jar": "97dc3305465740feaf284b660f1733497f4f9420350b1531970887a4b2900f2e"
+  },
+  "postgresql": {
+    "frozenSnapshots": 2,
+    "usageReceipts": 12,
+    "documentsStoredAsCiphertext": true,
+    "completedAgentExecutions": 4,
+    "deliveredReplyEvents": 39,
+    "deliveredUsageEvents": 12,
+    "undeliveredOutboxEntries": 0,
+    "completedProcesses": 2
+  },
+  "reviewAuditIdentityVerified": true
+}
