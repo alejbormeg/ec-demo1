@@ -4,10 +4,13 @@ BASELINE=${EC_DEMO_BASELINE:-$HOME/.local/share/ec-demo1/demo-baseline}
 
 # The services' databases, whole: their state is the demo's state. (content, users and keycloak are not.)
 DATABASES="audit booking communication crs_integration customer_history customer_mdm front_office integrations loyalty mapping notices partners registration_rules"
-# The engine's database only by its state tables: processes, their steps, the forms' tasks, locks and
-# overrides. Its history — logs, the outbox, the task dedup store — is gigabytes and not the demo's state.
+# The engine's database only by its state tables: processes, their steps, the forms' tasks, locks,
+# overrides, and the domain events taken in (inbound_event_receipt, 2.26+: the dedup that keeps an event
+# from starting a process twice — it goes with the processes it started). Its history — logs, the outbox,
+# the task dedup store — is gigabytes and not the demo's state; and what is set up, not run — the event
+# triggers of events.yaml (event_trigger), the paused schedules and triggers — stays, as the definitions do.
 ENGINE_DB=workflow
-ENGINE_TABLES="process_entity step_execution_entity form_execution_entity process_lock process_lock_waiter resource_entity process_index task_override"
+ENGINE_TABLES="process_entity step_execution_entity form_execution_entity process_lock process_lock_waiter resource_entity process_index task_override inbound_event_receipt"
 
 # What stops while the state is put back, and starts again after.
 SERVICES="audit-service booking communication-service crs-integration-service customer-mdm-service front-office integrations-service mapping-service erp notices customer-history loyalty pms-integration-service registration-rules ec-eventconductor-orchestrator ec-eventconductor-forms"
@@ -93,7 +96,8 @@ salesforce_env() {
 }
 
 # The context the CRS locator goes under in Opera, in the ec-demo-run ConfigMap pms-integration takes its
-# environment from. Opera is never cleaned: each run to zero writes under a context of its own, so a new
+# environment from. Each run to zero writes under a context of its own — earlier runs' reservations are
+# cancelled, not deleted, and keep their locators — so a new
 # locator that happens to repeat an old one does not find — and update — an old run's reservation.
 # Without the ConfigMap the service uses ECDEMO1, the context of everything written before there was one.
 OPERA_CONTEXT_DEFAULT=ECDEMO1

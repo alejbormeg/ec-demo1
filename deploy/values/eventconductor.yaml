@@ -77,7 +77,10 @@ orchestrator:
   # 2.25.1: cron schedules — Workflow → Schedules in the admin console (consult, pause/resume, run
   # now, create/edit/delete), the REST API and MCP tools; git overwrites a UI schedule by id
   # (eventconductor#468, #472; migrations V37, V38). 2.25.0 never shipped (eventconductor#474).
-  imageTag: "2.25.1"
+  # 2.27.1: event triggers and onEvent (2.26.0, V39–V41); secure defaults, LOCK release however a
+  # process ends, ordered outbox with several relays (2.27.0, V42–V44). The standalone app keeps its
+  # REST API open behind its own filter chain.
+  imageTag: "2.27.1"
   replicas: 1
   servicePort: 8105
   # The engine owns its schema now. It always could — the image ships flyway-core and
@@ -218,7 +221,8 @@ forms:
   # 2.23.7: a task page by its own route (/forms/task/{id}) — the inbox links to it; claim takes the
   # signed-in user, only the assignee completes (eventconductor#451).
   # 2.23.8: Claim hidden once claimed, Release for the assignee (eventconductor#452).
-  imageTag: "2.23.8"
+  # 2.27.1: the same release as the orchestrator.
+  imageTag: "2.27.1"
   replicas: 1
   servicePort: 8106
   # The engine owns its schema now. It always could — the image ships flyway-core and
@@ -269,7 +273,8 @@ forms:
 # is the honest state: the engine is there and wired, the catalogue is empty.
 rules:
   image: miguelperezcolom/rule-standalone-app
-  imageTag: "2.23.6"
+  # 2.27.1: starts with gRPC on again (2.26.0/2.27.0 did not); off here anyway.
+  imageTag: "2.27.1"
   replicas: 1
   servicePort: 8107
   grpcEnabled: false

@@ -26,7 +26,7 @@ What it does, all through the consoles (Redwood by default):
 
 0. **Reset** from the control plane's *Demo* page (⋯ «Resetear la demo…» → Sí), confirmed in the inbox
    task «Confirmar el reset de la demo» (Claim → «Sí, resetear…» → Complete); waits for the Demo page to
-   show the reset done. Opera is never cleaned (a shared UAT): the reset moves to a new Opera context.
+   show the reset done. The reset cancels in Opera (a shared UAT) the reservations the demo wrote, and nothing else, then moves to a new Opera context.
 1. **Onboarding MRU01 → XMAR**: «+ 10 reservas demo», PMS → front office and CRS → PMS integrations, the
    dictionary («Ask the agent» + Approve), backfill, activate.
 2. **Returning customer**: a new booking for the holder of a demo booking (same name and phone, another

@@ -177,7 +177,13 @@ public class Cashier {
         }), Cashier::said);
   }
 
-  /** The guest paid the link (its page): captured, with its receipt. A link paid or cancelled stays as it is. */
+  /**
+   * The guest paid the link (its page): captured, with its receipt. A link paid or cancelled stays as it is.
+   *
+   * <p>The page is public and a double click is two POSTs: the PENDING read above is only a shortcut, the
+   * conditional transition is what decides. The request that loses it captures nothing and tells the PMS
+   * nothing; it answers with the payment as the winner left it.
+   */
   public Optional<Payment> payLink(String token) {
     var payment = blank(token) ? Optional.<Payment>empty() : payments.byLinkToken(token);
     if (payment.isEmpty() || payment.get().status() != Payment.Status.PENDING) {
@@ -186,8 +192,11 @@ public class Cashier {
     var p = payment.get();
     return Optional.of(audit.run("Payment link paid", p.stayId(), "huésped (link)", StayAudit.params("amount", p.amount()),
         () -> transaction.execute(s -> {
-          var paid = payments.save(p.withStatus(Payment.Status.CAPTURED, "Pagado por link · aut. " + authorization(),
-              payments.nextReceiptNo(), clock.instant()));
+          var paid = p.withStatus(Payment.Status.CAPTURED, "Pagado por link · aut. " + authorization(),
+              payments.nextReceiptNo(), clock.instant());
+          if (!payments.transition(p, paid)) {
+            return payments.byId(p.id()).orElse(p);
+          }
           toThePms(paid, false, "huésped (link)");
           return paid;
         }), Cashier::said));
@@ -201,7 +210,13 @@ public class Cashier {
     return payments.byId(id);
   }
 
-  /** Cancels a pending link, or takes a captured payment back (a refund): it stays, and counts for nothing. */
+  /**
+   * Cancels a pending link, or takes a captured payment back (a refund): it stays, and counts for nothing.
+   *
+   * <p>Only from the status read here: if the guest paid the link meanwhile, or another desk already took
+   * it back, the transition fails and the desk is told — never a link cancelled over a payment the PMS
+   * already has, nor a refund posted twice.
+   */
   public Payment cancel(String paymentId, String by) {
     var p = payments.byId(paymentId).orElseThrow(() -> new Refused("No hay ningún cobro " + paymentId));
     if (p.status() == Payment.Status.CANCELLED || p.status() == Payment.Status.DECLINED) {
@@ -209,7 +224,10 @@ public class Cashier {
     }
     return audit.run("Payment cancelled", p.stayId(), by, StayAudit.params("payment", p.id(), "amount", p.amount()),
         () -> transaction.execute(s -> {
-          var cancelled = payments.save(p.withStatus(Payment.Status.CANCELLED, null, null, null));
+          var cancelled = p.withStatus(Payment.Status.CANCELLED, null, null, null);
+          if (!payments.transition(p, cancelled)) {
+            throw new Refused("El cobro ha cambiado mientras tanto: vuelve a abrirlo antes de anularlo");
+          }
           if (p.captured()) {
             toThePms(cancelled, true, by);
           }

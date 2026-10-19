@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The header's inbox: an icon button like the header's others, its words in Spanish in the tooltip
+ * The header's inbox: an icon link like the header's buttons, its words in Spanish in the tooltip
  * and the accessible name, the count as a pill over the bell.
  */
 class InboxBadgeTest {
@@ -18,28 +18,31 @@ class InboxBadgeTest {
         assertThat(InboxBadge.label(2, 2)).isEqualTo("Bandeja (2 · 2 urgentes)");
     }
 
+    /** No {@code <vaadin-button>}: since Mateu 3.0-alpha.430 neither shell draws a custom element but the icon. */
     @Test
-    void itIsATertiaryIconButtonWithAnOutlineBellNotALink() {
+    void itIsAnIconLinkWithAnOutlineBell() {
         var html = InboxBadge.html(2, 2);
         assertThat(html)
-                .startsWith("<vaadin-button theme=\"tertiary icon\"")
+                .startsWith("<a href=\"/inbox/pending\"")
+                .endsWith("</a>")
                 .contains("aria-label=\"Bandeja (2 · 2 urgentes)\"", "title=\"Bandeja (2 · 2 urgentes)\"")
                 .contains("icon=\"vaadin:bell-o\"")
-                .doesNotContain("<a ", "&nbsp;", "Inbox (", "vaadin:bell\"");
+                .doesNotContain("<vaadin-button", "&nbsp;", "Inbox (", "vaadin:bell\"");
     }
 
     /**
-     * Mateu sanitises rendered HTML (DOMPurify): an inline handler is stripped, and with it the way
-     * in. The badge says where it goes in data attributes, which survive; the inbox's script makes
-     * the navigation.
+     * Mateu sanitises rendered HTML, and each shell keeps a different way in: the Vaadin shell
+     * (DOMPurify) the data attributes, for the inbox's script; the Redwood shell the
+     * navigation-requested an {@code onclick} names, which it reads — never runs — into a route link.
      */
     @Test
-    void itOpensTheInboxWithoutInlineHandlers() {
+    void itSaysWhereItGoesForBothShells() {
         var html = InboxBadge.html(2, 1);
         assertThat(html)
                 .contains("data-ec-route=\"/inbox/pending\"", "data-ec-base-url=\"/_inbox\"",
                         "data-ec-server-side-type=\"" + InboxHome.class.getName() + "\"")
-                .doesNotContainPattern("(?i)\\son[a-z]+\\s*=")
+                .contains("onclick=\"this.dispatchEvent(new CustomEvent('navigation-requested', {detail: {route: '/inbox/pending',",
+                        "baseUrl: '/_inbox'", "serverSideType: '" + InboxHome.class.getName() + "'}")
                 .doesNotContain("javascript:", "<script");
     }
 

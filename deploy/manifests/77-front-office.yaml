@@ -43,7 +43,7 @@ spec:
             capabilities: { drop: ["ALL"] }
       containers:
         - name: front-office
-          image: miguelperezcolom/ec-demo1-front-office:0.75.0
+          image: miguelperezcolom/ec-demo1-front-office:0.76.0
           env:
             # Traces to Tempo: taking a stay from front-office-commands joins the trace of the booking
             # that wrote it into Opera.
@@ -112,6 +112,10 @@ spec:
               valueFrom: { secretKeyRef: { name: ec-agent-reader, key: AGENT_DB_PASSWORD } }
             - name: DB_POOL_SIZE
               value: "6"
+            # The key its invoice and receipt links are signed with, generated once by deploy.sh: a
+            # link e-mailed yesterday still opens after a restart or on the other replica.
+            - name: LINK_SECRET
+              valueFrom: { secretKeyRef: { name: ec-front-office-links, key: LINK_SECRET } }
             # The reception agent's actions are audited: to the `audit` topic, from an outbox. And it
             # consumes: the stays and catalogue of the PMS (front-office-commands), the MDM's customers.
             - name: KAFKA_BROKERS

@@ -33,6 +33,15 @@ class JdbcCashier implements Payments, CreditTerms.Repository {
   }
 
   @Override
+  public boolean transition(Payment from, Payment to) {
+    // One conditional statement, so the database decides the race: the second of two concurrent
+    // updates waits for the first's row lock and then no longer matches the status it expected.
+    return jdbc.update("update folio_payment set status = ?, reference = ?, receipt_no = ?, captured_at = ? "
+            + "where id = ? and status = ?", to.status().name(), to.reference(), to.receiptNo(), ts(to.capturedAt()),
+        from.id(), from.status().name()) == 1;
+  }
+
+  @Override
   public Optional<Payment> byId(String id) {
     return jdbc.query("select * from folio_payment where id = ?", (rs, n) -> payment(rs), id).stream().findFirst();
   }

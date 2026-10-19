@@ -5,15 +5,15 @@ description: Cómo se usa Mateu en ec-demo1 — pantallas federadas, dos rendere
 
 [Mateu](https://mateu.io) es el framework de interfaces de todas las pantallas de ec-demo1: cada servicio
 describe sus pantallas en Java (view models con anotaciones) y el renderer las dibuja. La versión es la
-misma en todos los módulos (`mateu.version`, hoy `3.0-alpha.422`).
+misma en todos los módulos (`mateu.version`, hoy `3.0-alpha.430`).
 
 ## Cómo se usa aquí
 
 - **Cada servicio declara un `@UI`** en su ruta (`/_mapping`, `/_integrations`…) con sus menús, y la
   consola lo monta con un `RemoteMenu`. La etiqueta del `RemoteMenu` tiene que ser la de la sección del
   pod remoto (su único `@Menu` de arriba, en mayúscula): una sección por servicio.
-- **Dos renderers, el mismo servidor.** La consola se compila con `io.mateu:vaadin-lit` (por defecto) o
-  con `io.mateu:redwood` (`-Predwood`). Un `RemoteMenu` transporta UIDL, así que las pantallas de los
+- **Dos renderers, el mismo servidor.** La consola se compila con `io.mateu:mateu-vaadin` (por defecto) o
+  con `io.mateu:mateu-redwood` (`-Predwood`). Un `RemoteMenu` transporta UIDL, así que las pantallas de los
   servicios no saben quién las pinta.
 - **`ui-commons`** tiene lo que comparten: el paginado, el widget del usuario y la bandeja de la
   cabecera, las tablas de «otros sistemas», la base de los CRUD de catálogo y los KPI de consumo.

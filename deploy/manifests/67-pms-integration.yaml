@@ -45,7 +45,7 @@ spec:
             capabilities: { drop: ["ALL"] }
       containers:
         - name: pms-integration-service
-          image: miguelperezcolom/ec-demo1-pms-integration-service:0.75.0
+          image: miguelperezcolom/ec-demo1-pms-integration-service:0.76.0
           env:
             # Traces to Tempo, the one the engine exports to: a booking's trace runs from the CRS through
             # the orchestrator to this service's steps, its calls to the MDM and to Opera, and on to the
@@ -81,11 +81,16 @@ spec:
             # service account — the Role below lets it touch that ConfigMap and nothing else.
             - name: RUN_CONFIG_KUBERNETES
               value: "true"
+            # reset-demo's cancel-earlier-runs cancels in Opera what the demo's runs wrote: in the
+            # integrations' properties and in these, with the chain's connection when no integration
+            # names them — XMAR, the demo's property, holds every earlier run's reservations.
+            - name: OPERA_CLEANUP_PROPERTIES
+              value: "XMAR"
             # OHIP UAT: reservations carry the CRS's locator under a context of our own. Not "CRS":
             # the tenant's real CRS writes its references under it, and ours would mix with theirs.
             # The context (OPERA_EXTERNAL_SYSTEM) is not here but in the ec-demo-run ConfigMap (envFrom,
-            # below): deploy/demo/zero.sh sets a new one each run, ECDEMO1-<MMddHHmm>, since Opera is
-            # never cleaned; reset.sh puts back the baseline's. Without it the service uses ECDEMO1. It
+            # below): deploy/demo/zero.sh and reset-demo set a new one each run, ECDEMO1-<MMddHHmm>, so a
+            # new locator never finds an earlier run's reservation; reset.sh puts back the baseline's. Without it the service uses ECDEMO1. It
             # must not be set here too: an env entry wins over envFrom. ECDEMO1… is not one of OPERA's
             # catalogued external systems — a reservation's references take any context; a profile's
             # would not (see OPERA_PROFILE_REFERENCES). The CRS version goes in a numeric UDF named as

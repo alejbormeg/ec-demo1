@@ -114,11 +114,23 @@ spring:
         consumePmsReservations-in-0:
           destination: pms-reservations
           group: ec-demo1-integrations-pms-reservations
+          # Retried until it goes: after the binder's default three attempts the event would be
+          # dropped (there is no DLQ); the process key's dedup in the engine makes redeliveries harmless.
+          consumer:
+            max-attempts: 1000
+            back-off-initial-interval: 1000
+            back-off-max-interval: 60000
         # IN: what a front office's desk did — check-in, check-out, no-show; the PMS records it
         # (pms-fo: «registrar-checkin», «registrar-checkout», «registrar-no-show-pms»).
         consumeFrontOfficeEvents-in-0:
           destination: front-office-events
           group: ec-demo1-integrations-front-office-events
+          # Retried until it goes: after the binder's default three attempts the event would be
+          # dropped (there is no DLQ); the process key's dedup in the engine makes redeliveries harmless.
+          consumer:
+            max-attempts: 1000
+            back-off-initial-interval: 1000
+            back-off-max-interval: 60000
 
   datasource:
     url: ${DB_URL:jdbc:postgresql://127.0.0.1:5432/integrations}

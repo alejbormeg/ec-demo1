@@ -38,7 +38,10 @@ public class Deliveries {
 
     @Transactional
     public void accept(NotificationRequested request) {
-        if (notifications.existsByDedupKey(request.dedupKey())) {
+        // No key means nothing to deduplicate by: a derived query given null asks `dedup_key is null`,
+        // and every key-less notification after the first would be dropped as already sent.
+        var key = request.dedupKey();
+        if (key != null && !key.isBlank() && notifications.existsByDedupKey(key)) {
             log.debug("Already notified: {}", request.dedupKey());
             return;
         }

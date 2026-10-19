@@ -7,8 +7,9 @@
 #     catalogs, the registration rules, the process definitions, content, users and Keycloak;
 #   - Salesforce loses every contact and the MDM's Cases (change requests and reception notices: a
 #     contact with a Case cannot be deleted).
-# Opera is not touched, and never cleaned: what earlier runs wrote stays there. So each run gets a
-# context of its own for the CRS locator in the reservations' external references — ECDEMO1-<MMddHHmm>,
+# Opera loses the reservations the demo wrote, this run's and every earlier one's (opera-cancel-ours.py,
+# as reset-demo's cancel-earlier-runs does from the Demo page): nothing else there is touched. Each run
+# still gets a context of its own for the CRS locator in the reservations' external references — ECDEMO1-<MMddHHmm>,
 # UTC, in the ec-demo-run ConfigMap — and a new random locator that repeats an old one does not find,
 # and update, an old run's reservation. Within a run the integration still finds what it wrote by
 # locator (under the run's context), so walking the onboarding again writes no reservation twice.
@@ -28,6 +29,9 @@ for d in $SERVICES; do kubectl -n $NS scale deploy/$d --replicas=0 >/dev/null; d
 for d in $SERVICES; do kubectl -n $NS wait --for=delete pod -l app=$d --timeout=180s >/dev/null 2>&1 || true; done
 sleep 5
 
+echo "Cancelling in Opera the reservations of the demo's runs"
+python3 ./opera-cancel-ours.py XMAR --yes || echo "  (some were not cancelled: see above)"
+
 echo "A new Opera context for this run"
 set_opera_context "ECDEMO1-$(date -u +%m%d%H%M)"
 
@@ -41,14 +45,14 @@ wipe() {
   echo "truncate $tables cascade;" | psql_in "$db" && echo "  $db: ${tables//,/ }"
 }
 echo "Emptying what the integration made"
-wipe booking booking_entity crs_booking catalog_rate_plan outbox_message
+wipe booking booking_entity crs_booking catalog_rate_plan crs_intake_pause outbox_message
 wipe partners outbox_message
 wipe crs_integration inbox_entry outbox_message
 wipe integrations integration backfill_run fo_integration fo_backfill_run outbox_message
 wipe mapping cause mapping_entry partner_profile waiter waiter_cause outbox_message
 wipe communication inbox_item inbox_seen notification resolution
 wipe customer_mdm customer customer_source customer_xref customer_document consolidation change_request customer_notice inbox_entry outbox_message
-wipe front_office guest guest_kardex guest_preference stay stay_add_on stay_companion stay_incident folio folio_line pms_catalogue pms_catalogue_sync command_inbox walk_in check_in_ops forced_check_in stay_invoice folio_line_pms pax_registration_data customer_nationality customer_notice stay_notice_ack pax_recognition pax_scan arrival_briefing pax_kardex folio_payment folio_credit
+wipe front_office guest guest_kardex guest_preference stay stay_add_on stay_companion stay_incident folio folio_line pms_catalogue pms_catalogue_sync command_inbox walk_in check_in_ops forced_check_in stay_invoice folio_line_pms pax_registration_data customer_nationality customer_notice stay_notice_ack pax_recognition pax_scan arrival_briefing pax_kardex folio_payment folio_credit outbox_message inbox_entry
 echo "update room set occupancy = 'FREE';" | psql_in front_office
 wipe notices notice outbox_message
 wipe customer_history customer_stay customer_alias

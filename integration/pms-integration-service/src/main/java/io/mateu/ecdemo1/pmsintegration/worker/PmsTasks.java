@@ -42,6 +42,7 @@ public class PmsTasks {
     public static final String POST_PAYMENT = "post-payment";
     public static final String REFUND_PAYMENT = "refund-payment";
     public static final String NEW_OPERA_CONTEXT = "new-opera-context";
+    public static final String CANCEL_EARLIER_RUNS = "cancel-earlier-runs";
 
     /** new-opera-context's input: the reset-demo process asking. */
     public record ContextTask(String processKey) {
@@ -184,6 +185,23 @@ public class PmsTasks {
                 io.mateu.ecdemo1.pmsintegration.demo.NewOperaContext.Output.class, (input, context) -> {
                     try {
                         return contexts.renew(input == null ? null : input.processKey());
+                    } catch (RuntimeException e) {
+                        log.warn("Step {} of {} failed: {}", context.stepId(), context.processId(), e.getMessage());
+                        throw new TaskFailure(e.getMessage() == null ? e.toString() : e.getMessage());
+                    }
+                });
+    }
+
+    /** Cancels in Opera what the demo's runs wrote there, before the services forget it. */
+    @Bean
+    public TaskRegistration<ContextTask, io.mateu.ecdemo1.pmsintegration.demo.EarlierRuns.Output> cancelEarlierRunsTask(
+            io.mateu.ecdemo1.pmsintegration.demo.EarlierRuns earlierRuns) {
+        return new TaskRegistration<>(CANCEL_EARLIER_RUNS, 1, TOPIC, ContextTask.class,
+                io.mateu.ecdemo1.pmsintegration.demo.EarlierRuns.Output.class, (input, context) -> {
+                    try {
+                        var outcome = earlierRuns.cancel(context::progress);
+                        context.progress(outcome.summary());
+                        return outcome;
                     } catch (RuntimeException e) {
                         log.warn("Step {} of {} failed: {}", context.stepId(), context.processId(), e.getMessage());
                         throw new TaskFailure(e.getMessage() == null ? e.toString() : e.getMessage());

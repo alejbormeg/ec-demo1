@@ -140,6 +140,10 @@ append_if_missing DOCS_ORACLE_PASSWORD "$(openssl rand -base64 18 | tr -d '/+=' 
 # The AI agents' read-only login (agent_reader): it reads each service's agent views and nothing
 # else (supporting/agent-sql, doc/src/content/docs/ia/datos-del-agente.md). Rotating it only needs the db-init Job re-run.
 append_if_missing AGENT_DB_PASSWORD "$(openssl rand -base64 24 | tr -d '/+=' | head -c 24)"
+# What the front office signs its invoice and receipt links with. Without one each pod start draws
+# its own key, and every link already e-mailed or printed stops opening at the next restart; kept
+# once, like the crypto keys above, because rotating it breaks those links the same way.
+append_if_missing FRONT_OFFICE_LINK_SECRET "$(openssl rand -base64 32)"
 if [ "$WORKFLOW_AGENTS_ENABLED" = true ]; then
   append_if_missing WORKFLOW_AGENT_CLIENT_SECRET "$(openssl rand -hex 32)"
   append_if_missing WORKFLOW_AGENT_DB_PASSWORD "$(openssl rand -hex 24)"
@@ -223,6 +227,9 @@ kubectl create secret generic ec-cp-crypto -n "$NS" \
   --dry-run=client -o yaml | kubectl apply -f -
 kubectl create secret generic ec-integrations-crypto -n "$NS" \
   --from-literal=INTEGRATIONS_CRYPTO_KEY="$INTEGRATIONS_CRYPTO_KEY" \
+  --dry-run=client -o yaml | kubectl apply -f -
+kubectl create secret generic ec-front-office-links -n "$NS" \
+  --from-literal=LINK_SECRET="$FRONT_OFFICE_LINK_SECRET" \
   --dry-run=client -o yaml | kubectl apply -f -
 
 # The chat agent's Anthropic key. Not generated — it is bought, not derived — so it is only

@@ -91,7 +91,7 @@ its folder (`systems/erp` builds `ec-demo1-erp`); the root `pom.xml` only aggreg
 | `control-plane/grpc-interface/` | The generated stubs for `users`' gRPC contract. Not an application; no image |
 | **`consoles/`** | **What people see** |
 | `consoles/gateway/` | Spring Cloud Gateway — routes the consoles and enforces the token |
-| `consoles/shell/` | The data plane's shell, rendered by Vaadin (default build) and by Redwood (`-Predwood`: `io.mateu:redwood` in place of `io.mateu:vaadin-lit`, and nothing else changed) |
+| `consoles/shell/` | The data plane's shell, rendered by Vaadin (default build) and by Redwood (`-Predwood`: `io.mateu:mateu-redwood` in place of `io.mateu:mateu-vaadin`, and nothing else changed) |
 | `consoles/control-shell/` | The control console's shell, on `console.ec1.mateu.io` and `rw-console.ec1.mateu.io` (the `-Predwood` build), behind the `ai-admin` role |
 | **`ai/`** | **The agents** |
 | `ai/ia-agent/` | The console's chat agent — an LLM that answers only by calling MCP tools |
@@ -730,7 +730,7 @@ Four consoles, two planes, two renderers:
 | **the platform** | `console.ec1.mateu.io` | `rw-console.ec1.mateu.io` |
 
 The Redwood consoles are the same two shell modules built with **`-Predwood`**: that Maven profile
-puts `io.mateu:redwood` on the classpath where the default build has `io.mateu:vaadin-lit` (and
+puts `io.mateu:mateu-redwood` on the classpath where the default build has `io.mateu:mateu-vaadin` (and
 sets the port and a " · Redwood" in the tab's title). Nothing else about them is renderer-aware.
 One module, two images — `ec-demo1-shell` and `ec-demo1-shell-redwood`, `ec-demo1-control-shell`
 and `ec-demo1-control-shell-redwood` — and `deploy/build-images.sh` builds both, each with a

@@ -19,12 +19,23 @@ public class CreateUserUseCase {
     final UserRepository repository;
     final IdentityOutboxAppender identityOutboxAppender;
 
+    /**
+     * Creates a user, and only creates: the id is the caller's (the username), and the entity is not
+     * Persistable, so a save with an id that already exists would merge over that user — overwriting
+     * its name, groups and roles and pushing the result to Keycloak — under a button that says
+     * "create". Refused instead, with the reason in words.
+     */
     @Transactional
     public void handle(CreateUserCommand command) {
+        var id = new UserId(command.id());
+        if (repository.findById(id).isPresent()) {
+            throw new IllegalArgumentException("A user with id " + command.id() + " already exists");
+        }
         var user = User.of(
-                new UserId(command.id()),
+                id,
                 new Name(command.name()),
                 new Email(command.email()),
+                // never null: CreateUserCommand turns a missing list into an empty one
                 command.groupIds().stream().map(UserGroupId::new).toList(),
                 command.roleIds().stream().map(RoleId::new).toList()
         );

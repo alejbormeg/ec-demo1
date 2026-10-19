@@ -22,7 +22,8 @@ cada servicio ejecuta su propio plan de borrado.
 flowchart LR
   A[Confirmar<br/>formulario, ai-admin] -->|sí| B[Pausar la entrada<br/>del CRS]
   A -->|no| Z[Fin: nada cambió]
-  B --> C{{Cada servicio a cero<br/>en paralelo}}
+  B --> O[Opera: cancelar las<br/>reservas de la demo]
+  O --> C{{Cada servicio a cero<br/>en paralelo}}
   C --> D[Salesforce:<br/>contactos y Cases]
   D --> E[Contexto nuevo<br/>de Opera]
   E --> F[El motor a cero<br/>menos este proceso]
@@ -36,9 +37,10 @@ flowchart LR
 | :--- | :---- | :------- |
 | Confirmar | formulario `confirmar-reset-demo` (motor de formularios) | Llega a la **bandeja** de los administradores (se reclama y se completa en *Tareas*); dice que también borra los contactos y Cases de **Salesforce**. Sin marcar «Sí», el proceso termina sin tocar nada. La otra casilla siembra al final las 10 reservas demo de MRU01 |
 | Pausar la entrada | booking (`pause-intake`) | El CRS rechaza reservas nuevas, cambios y cancelaciones —asistente, API, MCP, «+ 10 reservas demo»— hasta que se reanude; como mucho 30 min |
+| Cancelar en Opera | pms-integration (`cancel-earlier-runs`) | Cancela (motivo `OTROS`) las reservas que escribió la demo, esta pasada y todas las anteriores —reconocidas por el contexto del localizador del CRS: `ECDEMO1`, `ECDEMO1-…`, `ECLOCAL-…`, `EC1-…`— y nada más. En las propiedades de las integraciones, que aún no se han vaciado, y en las de `OPERA_CLEANUP_PROPERTIES` (XMAR), con la conexión de la cadena si ninguna integración las nombra. Las que están **en casa** no se pueden cancelar: el resumen del paso las nombra para hacerles el check-out a mano. Es lo mismo que `deploy/demo/opera-cancel-ours.py` |
 | Cada servicio a cero | cada uno, tarea `reset` en su topic | Vacía las tablas de **su plan** en una transacción, con sus consumidores de Kafka en pausa mientras tanto (la librería `supporting/demo-reset`): booking, ERP (su outbox), front office (y las habitaciones quedan libres), avisos, historial de clientes, fidelización, crs-integration, mapping, MDM, integraciones, comunicación, auditoría (menos las acciones «Demo: …») |
 | Salesforce | customer-mdm (`clean-salesforce`) | Borra los Cases de petición de cambio y todos los contactos, de 200 en 200, y retoma los eventos de Salesforce desde ahora |
-| Contexto de Opera | pms-integration (`new-opera-context`) | `ECDEMO1-<MMddHHmm>` (UTC): el conector lo usa **al momento, sin reiniciar**, y lo guarda en el ConfigMap `ec-demo-run` (para su próximo arranque y para los scripts). **Opera no se limpia nunca** |
+| Contexto de Opera | pms-integration (`new-opera-context`) | `ECDEMO1-<MMddHHmm>` (UTC): el conector lo usa **al momento, sin reiniciar**, y lo guarda en el ConfigMap `ec-demo-run` (para su próximo arranque y para los scripts). Las reservas canceladas siguen en Opera con su localizador: el contexto nuevo evita que uno repetido las encuentre |
 | El motor a cero | integrations-service (`purge-engine`) | Borra procesos, pasos, formularios, candados, recursos, logs e índices **menos los del propio reset**. Es el último paso de datos |
 | Reanudar la entrada | booking (`resume-intake`) | El CRS vuelve a admitir reservas |
 | Sembrar | booking (`seed-demo-bookings`) | Solo si se marcó: las 10 reservas demo de MRU01 (sin integración se quedan en el CRS: el punto de partida del flujo 1) |

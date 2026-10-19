@@ -100,9 +100,19 @@ public class InboxPage implements Listing<InboxRow>, Searchable {
         return true;
     }
 
-    /** The row's Open: marks it seen and goes where it is resolved. */
+    /**
+     * The row's Open: marks it seen and goes where it is resolved.
+     *
+     * <p>Only an item the listing would show this person: the clicked id comes from the request, and
+     * an id typed into it is not a row they were shown — another role's item opens nothing.
+     */
     public Object open(HttpRequest httpRequest) {
-        var item = inbox.find(clickedId(httpRequest)).orElse(null);
+        var item = inbox.find(clickedId(httpRequest))
+                .filter(i -> Inbox.visibleTo(i, Caller.roles(httpRequest), Caller.username(httpRequest)))
+                .orElse(null);
+        if (item == null) {
+            return null;
+        }
         var link = inbox.linkOf(item);
         if (link == null || link.isBlank()) {
             return null;

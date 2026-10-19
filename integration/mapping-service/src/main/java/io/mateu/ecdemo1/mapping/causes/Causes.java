@@ -94,7 +94,11 @@ public class Causes {
     @Transactional
     public void await(String processKey, String engineProcessId, String definitionId, String hotelCode, String subject,
                       List<Variable> variables, List<Cause> blocking) {
-        for (var cause : blocking) {
+        // In key order, as every transaction that locks several causes: two never wait on each other.
+        for (var cause : blocking.stream().sorted(java.util.Comparator.comparing(Cause::key)).toList()) {
+            // Locked before it is read: a resolution running now either sees this wait once it commits,
+            // or has committed already and the cause reads as resolved — and is opened again here.
+            causes.lock(cause.key());
             var record = causes.findById(cause.key()).orElseGet(() -> {
                 var fresh = new CauseRecord();
                 fresh.causeKey = cause.key();
@@ -138,6 +142,8 @@ public class Causes {
     @Audited("Resolve cause")
     @Transactional
     public void resolve(String causeKey, String resolvedBy) {
+        // Serialised with every wait on it and every other resolution of it (see await).
+        causes.lock(causeKey);
         var record = causes.findById(causeKey).orElseThrow(() -> new NoSuchElementException("No cause " + causeKey));
         if (record.status == CauseStatus.RESOLVED) {
             return;
@@ -148,7 +154,14 @@ public class Causes {
         causes.save(record);
         outbox.appendResolution(causeKey, resolvedBy);
         var released = 0;
-        for (var waiter : waiters.waitingOn(causeKey)) {
+        // In key order, so two resolutions that share waiters lock them in the same order.
+        for (var waiter : waiters.waitingOn(causeKey).stream().sorted(java.util.Comparator.comparing(Waiter::getProcessKey)).toList()) {
+            // Locked before its causes are counted: another of its causes being resolved at the same
+            // time either sees this one resolved, or is seen resolved here — never neither. And it may
+            // have released, or a person discarded, the process meanwhile.
+            if (!waiters.lockStatus(waiter.getProcessKey()).map(WaiterStatus.WAITING.name()::equals).orElse(false)) {
+                continue;
+            }
             if (links.openCausesOf(waiter.getProcessKey()) == 0) {
                 waiter.setStatus(WaiterStatus.RELEASED);
                 waiter.setReleasedAt(clock.instant());
@@ -171,6 +184,8 @@ public class Causes {
     /** Resolves a cause if it is open, and does nothing otherwise — for steps that may run twice. */
     @Transactional
     public void resolveIfOpen(String causeKey, String resolvedBy) {
+        // Locked before it is read, so whether it is open is read as last committed.
+        causes.lock(causeKey);
         causes.findById(causeKey).filter(c -> c.status == CauseStatus.OPEN).ifPresent(c -> resolve(causeKey, resolvedBy));
     }
 

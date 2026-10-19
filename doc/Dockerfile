@@ -9,7 +9,8 @@
 #
 #   docker buildx build --platform linux/amd64 -t miguelperezcolom/ec-demo1-docs:0.1.0 --push doc
 
-FROM node:24-slim AS build
+# The site is the same for every platform: built once, on the builder's own.
+FROM --platform=$BUILDPLATFORM node:24-slim AS build
 WORKDIR /site
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund

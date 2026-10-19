@@ -58,6 +58,46 @@ El usuario `demo` y su contraseña son los de ec1 (`DEMO_PASSWORD`). La document
 - **Su propio contexto de Opera** (`ECLOCAL-<MMddHHmm>`, en el ConfigMap `ec-demo-run`), creado antes de
   que nada pueda escribir, y **sin el webhook de Google Chat**: sus alertas no llegan al chat de ec1.
 
+### En un Mac (Apple Silicon)
+
+`up.sh` funciona igual en un Mac con Docker Desktop, con tres preparativos y unas diferencias que hace
+él solo:
+
+```sh
+brew install kind gnu-sed
+# Docker Desktop → Settings → Resources: 24 GB de memoria y unos 160 GB de disco (con 63 se llenó)
+```
+
+- **Sin el pin a amd64**: el nodo es arm64. En la copia de `deploy/` se quitan los
+  `kubernetes.io/arch: amd64` y las peticiones de recursos se reducen al mínimo (las de ec1 suman unos
+  30 GB y un pod que no cabe se queda en Pending; la demo entera usa unos 18).
+- **Las imágenes de ec-demo1 se construyen aquí y se cargan en el nodo**, sin pasar por Docker Hub
+  (subirlas desde casa costaba 18 minutos por imagen):
+
+  ```sh
+  deploy/local/load-images.sh            # todas, con la etiqueta de los manifiestos
+  deploy/local/load-images.sh 0.76.0 systems/front-office   # solo un módulo
+  kubectl -n ec-demo1 rollout restart deploy/front-office
+  ```
+
+  `build-images.sh` sigue siendo el camino para ec1, y publica amd64 y arm64. Las imágenes del motor
+  solo están en amd64 en Docker Hub: se construyen en arm64 con el jar de la versión publicada y `up.sh`
+  las carga en el nodo (`kind load`) en lugar de descargarlas:
+
+  ```sh
+  img=miguelperezcolom/orchestrator-standalone-app:2.27.1   # y forms-, rule-
+  c=$(docker create --platform linux/amd64 $img); docker cp $c:/opt/app/app.jar <app>/target/<app>-2.27.1.jar
+  docker buildx build --builder desktop-linux --platform linux/arm64 -f <app>/Dockerfile.ci -t $img --load <app>
+  ```
+
+  (`<app>` es `apps/orchestrator-standalone-app` de un checkout de eventconductor en su tag.) El servidor
+  de embeddings usa su etiqueta arm64 (`cpu-arm64-…`).
+- **Sin sondas de liveness**: unas 35 JVM arrancando a la vez en un portátil tardan minutos; la sonda las
+  mataba antes de terminar y los reinicios se realimentaban hasta dejar el nodo sin hacer otra cosa
+  (carga 130 con 14 núcleos). La de readiness se queda: nada recibe tráfico antes de estar listo.
+- **El containerd y los volúmenes van dentro de la VM de Docker**, no en `~/.local/share`: overlayfs no
+  funciona sobre una carpeta compartida con macOS. `down.sh` se los lleva.
+
 ### Lo que no trae una instalación nueva
 
 - **Las credenciales de los LLM** no las crea ningún despliegue: se dan de alta en la consola de control

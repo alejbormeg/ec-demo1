@@ -62,23 +62,26 @@ public class InboxBadge implements Hydratable, ComponentTreeSupplier {
     static final String ROUTE = "/inbox/pending";
 
     /**
-     * The badge as the header's other icon buttons: a tertiary icon button with an outline bell in
-     * the header's icon colour, and the count as a small pill over the bell's top end — red while
-     * something urgent waits. The words are in its tooltip and accessible name, not on the bar.
+     * The badge as the header's other icon buttons: an icon link with an outline bell in the header's
+     * icon colour, and the count as a small pill over the bell's top end — red while something urgent
+     * waits. The words are in its tooltip and accessible name, not on the bar.
      *
      * <p>It is HTML because both shells draw it from the same string: Redwood draws a remote header
      * widget from its {@code Text}s alone, so a Mateu button or element would not be there at all.
-     * The Vaadin shell upgrades {@code <vaadin-button>} into a Lumo button (size, hover, focus ring).
-     * The Redwood shell has no such element: there it stays a plain focusable element ({@code role},
-     * {@code tabindex}), its {@code <vaadin-icon>} becomes the Redwood bell, and the colours fall back
-     * to the header's own (the {@code --lumo-*} ones are not defined there, except the urgent red,
-     * which the Redwood header sets to its light danger tone).
+     * Both sanitise it (Mateu 3.0-alpha.430): the Vaadin shell drops every custom element but
+     * {@code <vaadin-icon>} (so no {@code <vaadin-button>} any more) and every handler, and keeps
+     * {@code data-*}; the Redwood shell keeps only {@code class}, {@code title}, {@code aria-hidden}
+     * and a filtered {@code style}, and its {@code <vaadin-icon>} becomes the Redwood bell. The colours
+     * fall back to the header's own there (the {@code --lumo-*} ones are not defined, except the
+     * urgent red, which the Redwood header sets to its light danger tone).
      *
-     * <p>No inline handlers: Mateu sanitises rendered HTML, and an {@code onclick} does not survive
-     * it. The {@code data-ec-route} attributes say where it goes, and the inbox's script, which every
-     * shell loads ({@code /_inbox/push/push.js}), turns a click on it — or Enter or Space where it is
-     * not a real button — into the same {@code navigation-requested} the menu sends: an in-app
-     * navigation in both renderers, to a route of this pod.
+     * <p>So it is an {@code <a>} that says where it goes twice, once for each shell. Its
+     * {@code onclick} is never run by either: the Redwood renderer reads the {@code navigation-requested}
+     * detail out of it (its only form of a header route link), rewrites the link to the route's href
+     * and emits that same event on click. The Vaadin shell strips it, but keeps the
+     * {@code data-ec-route} attributes, and the inbox's script, which every shell loads
+     * ({@code /_inbox/push/push.js}), turns a click on them into the same event. The {@code href}
+     * is for a modified click (a new tab) in the Vaadin shell; Redwood writes its own.
      */
     static String html(int waiting, long urgent) {
         var label = label(waiting, urgent);
@@ -92,14 +95,18 @@ public class InboxBadge implements Hydratable, ComponentTreeSupplier {
                         ? " background: var(--lumo-error-color, #c62828); color: var(--lumo-error-contrast-color, #161513);"
                         : " background: var(--lumo-primary-color, currentColor); color: var(--lumo-primary-contrast-color, #161513);")
                 + "\">" + (waiting > 99 ? "99+" : String.valueOf(waiting)) + "</span>";
-        return "<vaadin-button theme=\"tertiary icon\" role=\"button\" tabindex=\"0\""
+        return "<a href=\"" + ROUTE + "\""
+                + " onclick=\"this.dispatchEvent(new CustomEvent('navigation-requested', {detail: {route: '" + ROUTE
+                + "', consumedRoute: '', baseUrl: '/_inbox', uriPrefix: '', serverSideType: '" + InboxHome.class.getName()
+                + "'}, bubbles: true, composed: true})); return false;\""
                 + " aria-label=\"" + label + "\" title=\"" + label + "\""
                 + " data-ec-route=\"" + ROUTE + "\" data-ec-base-url=\"/_inbox\""
                 + " data-ec-server-side-type=\"" + InboxHome.class.getName() + "\""
                 + " style=\"position: relative; display: inline-flex; align-items: center; justify-content: center;"
                 + " min-width: var(--lumo-size-m, 2.25rem); height: var(--lumo-size-m, 2.25rem); margin: 0; cursor: pointer;"
+                + " border-radius: var(--lumo-border-radius-m, 0.25em); text-decoration: none;"
                 + " color: var(--mateu-header-icon-color, var(--lumo-secondary-text-color, currentColor));\">"
-                + bell + count + "</vaadin-button>";
+                + bell + count + "</a>";
     }
 
     @Override

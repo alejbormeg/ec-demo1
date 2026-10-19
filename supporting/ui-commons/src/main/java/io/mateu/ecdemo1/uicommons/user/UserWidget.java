@@ -19,13 +19,20 @@ import java.util.Map;
  *
  * <p>The identity is the Keycloak token the page sends with every call, read by
  * {@link DisplayOnlyTokenClaims} — display only; the app's resource server has already verified
- * it. {@code window.logout()} is defined by the bootstrap page Mateu writes for
- * {@code @KeycloakSecured}. The name is escaped: it goes into markup.
+ * it. The name is escaped: it goes into markup.
  *
  * <p>The popover also says whether this browser receives notifications (Web Push), and turns them on
  * or off: {@code <ec-push-toggle>}, a custom element that the inbox's push script
- * ({@code /_inbox/push/push.js}, loaded by every shell with {@code @Script}) defines. Where that
- * script is not loaded the element stays undefined and draws nothing.
+ * ({@code /_inbox/push/push.js}, loaded by every shell with {@code @Script}) defines and puts in the
+ * popover. The widget cannot send the element: Mateu sanitises rendered HTML and drops an unknown
+ * custom element (3.0-alpha.430). It sends an inert {@code <span data-ec-push-toggle>}, which
+ * survives, and the script fills it (Vaadin); Redwood draws its own popover from plain rows, and the
+ * script puts the element there by itself.
+ *
+ * <p>Logout is {@code window.logout()}, which the bootstrap page Mateu writes for
+ * {@code @KeycloakSecured} defines. A {@code javascript:} href is not a link for Mateu (safeHref drops
+ * it, in both renderers), so the link goes to {@code #ec-logout} and the same script turns a click on
+ * it into that call. Where the script is not loaded neither line works.
  *
  * <p>Anonymous calls get no widget: the bootstrap page is about to redirect to Keycloak, so there
  * is no one to greet yet.
@@ -35,8 +42,14 @@ public final class UserWidget {
     /** The icon a narrow header keeps; the popover still has who and Logout. */
     static final String NARROW_ICON = "<vaadin-icon icon=\"vaadin:user\" style=\"display: var(--mateu-header-narrow-only, none); width: 1em; height: 1em; vertical-align: -0.125em;\"></vaadin-icon>";
 
-    /** Web Push for this browser: its state, and Activar / Desactivar / Enviarme una prueba. */
-    static final String PUSH_TOGGLE = "<ec-push-toggle></ec-push-toggle>";
+    /**
+     * Where Web Push for this browser goes — its state, and Activar / Desactivar / Enviarme una
+     * prueba: the push script puts an {@code <ec-push-toggle>} in it.
+     */
+    static final String PUSH_TOGGLE = "<span data-ec-push-toggle></span>";
+
+    /** The Logout link's target: the push script signs out on a click on it. */
+    static final String LOGOUT = "#ec-logout";
 
     private UserWidget() {
     }
@@ -117,7 +130,7 @@ public final class UserWidget {
                         .content(List.of(
                                 new Text("Email: " + claims.get("email")),
                                 new Text(PUSH_TOGGLE),
-                                new Anchor("Logout", "javascript: window.logout();")))
+                                new Anchor("Logout", LOGOUT)))
                         .spacing(true)
                         .padding(true)
                         .build())

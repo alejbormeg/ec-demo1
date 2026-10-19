@@ -17,4 +17,12 @@ public interface Connections {
 
     /** Every hotel's integration, whatever its state. */
     List<IntegrationView> integrations();
+
+    /**
+     * The chain's own connection — what a new integration starts from — for a property no integration
+     * names: only the demo's reset uses it, to clean what earlier runs wrote. Empty where it is not known.
+     */
+    default Optional<OhipConnection> chain(String pmsHotelCode) {
+        return Optional.empty();
+    }
 }

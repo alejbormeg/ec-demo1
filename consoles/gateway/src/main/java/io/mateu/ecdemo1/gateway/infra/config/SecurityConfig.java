@@ -117,6 +117,15 @@ public class SecurityConfig {
                 .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
                 .authorizeExchange(exchange -> exchange
                         .pathMatchers("/actuator/health/**").permitAll()
+                        // Metrics, for Prometheus and nobody else: it scrapes the pod directly
+                        // (the prometheus.io/* annotations), so its request never crossed the
+                        // ingress — see fromInsideCluster.
+                        .matchers(fromInsideCluster("/actuator/prometheus")).permitAll()
+                        // Every other actuator path, on every host. Not only the gateway's own:
+                        // a path the gateway does not expose falls through to the host's
+                        // catch-all route, and the front office's or a shell's actuator would be
+                        // published that way.
+                        .pathMatchers("/actuator", "/actuator/**").denyAll()
                         .pathMatchers("/eventconductor/**").permitAll()
                         // Git webhooks, listed explicitly rather than left to the catch-all
                         // below, because "public" is a decision here and not an oversight:
@@ -227,6 +236,29 @@ public class SecurityConfig {
                 .map(p -> (ServerWebExchangeMatcher) new PathPatternParserServerWebExchangeMatcher(p))
                 .toList());
         return new AndServerWebExchangeMatcher(this::isControlHost, paths);
+    }
+
+    /**
+     * Matches a path when the request did not come through the ingress.
+     *
+     * <p>ingress-nginx sets {@code X-Forwarded-For} and {@code X-Real-IP} on every request it
+     * proxies, overwriting or appending to whatever the client sent, so a caller on the internet
+     * cannot make them disappear. A request without either reached the pod from inside the
+     * cluster — Prometheus scraping the pod IP. Nothing in this application strips them first:
+     * no forward-headers-strategy is set, so on Kubernetes Spring Boot uses the native one, which
+     * reads them and leaves them on the request. Setting it to {@code framework} would remove them
+     * before this runs and open metrics to the internet.
+     */
+    private ServerWebExchangeMatcher fromInsideCluster(String pattern) {
+        ServerWebExchangeMatcher notForwarded = exchange -> {
+            var headers = exchange.getRequest().getHeaders();
+            return headers.getFirst("X-Forwarded-For") != null || headers.getFirst("X-Real-IP") != null
+                    || headers.getFirst("Forwarded") != null
+                    ? ServerWebExchangeMatcher.MatchResult.notMatch()
+                    : ServerWebExchangeMatcher.MatchResult.match();
+        };
+        return new AndServerWebExchangeMatcher(notForwarded,
+                new PathPatternParserServerWebExchangeMatcher(pattern));
     }
 
     private Mono<ServerWebExchangeMatcher.MatchResult> isControlHost(ServerWebExchange exchange) {

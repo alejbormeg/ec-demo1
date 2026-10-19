@@ -142,6 +142,13 @@ public class IntegrationController {
                 .orElseThrow(() -> new NoSuchElementException("No integration reaches Opera property " + pmsHotelCode));
     }
 
+    @GetMapping("/chain-connection")
+    @Operation(summary = "The chain's own connection to Opera, secret included — for the connector's demo reset, "
+            + "which cleans properties no integration names any more")
+    public OhipConnection chainConnection() {
+        return lifecycle.chainConnection();
+    }
+
     IntegrationDto dto(Integration i) {
         return IntegrationDto.of(i, runs.findFirstByIntegrationIdOrderByStartedAtDesc(i.id).orElse(null));
     }

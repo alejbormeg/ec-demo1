@@ -7,7 +7,7 @@ import { HOSTS, RENDERER, RUN, SalesforceFixture, Ui, after, day } from './ui'
  * by hand (docs/poc-acl/demo.md, docs/poc-acl/grabacion-demo.md), as a spec that can be run again.
  *
  * It WIPES the demo data: run it only through demo-ui.config.ts with DEMO_E2E_RESET=1
- * (`DEMO_E2E_RESET=1 npm run demo:ui`, see e2e/README.md). Opera (a shared UAT) is never cleaned:
+ * (`DEMO_E2E_RESET=1 npm run demo:ui`, see e2e/README.md). Opera (a shared UAT) only loses the reservations the demo wrote:
  * the reset moves the demo to a new Opera context, and the run only creates its own reservations.
  *
  * Serial: each flow builds on the one before (flow 1 creates the integrations everything else uses),
@@ -88,7 +88,7 @@ test.describe.serial(`demo, UI only (${RENDERER})`, () => {
         await ui.checkpoint('reset-done')
 
         // The data plane is empty.
-        await ui.go(`${D}/booking/bookings`, /\+ 10 reservas demo/)
+        await ui.go(`${D}/booking/bookings`, /Pms reservation id/)
         await ui.checkpoint('bookings-empty')
     })
 
@@ -101,8 +101,8 @@ test.describe.serial(`demo, UI only (${RENDERER})`, () => {
         const ui = new Ui(page, info)
 
         // Ten demo bookings in the CRS (verified live: the toolbar button; the dialog says «Crear»).
-        await ui.go(`${D}/booking/bookings`, /\+ 10 reservas demo/)
-        await ui.click(ui.button('+ 10 reservas demo'), 2_500)
+        await ui.go(`${D}/booking/bookings`, /Pms reservation id/)
+        await ui.action('+ 10 reservas demo')
         await ui.confirmIfAsked(8_000)
         await ui.reload(/Pms reservation id/)
         await ui.waitText(/Confirmed/, 'the 10 demo bookings never showed')
@@ -464,7 +464,8 @@ test.describe.serial(`demo, UI only (${RENDERER})`, () => {
         await ui.go(`${C}/mapping/dictionary?integration=MRU01`, /Crs code/)
         await ui.click(ui.button('Ask the agent'), 4_000)
         const proposed = new RegExp(`${code} \\| 432040HLXMU \\| \\d+ \\| Proposed`)
-        await expect.poll(async () => { await ui.reload(/Crs code/); return ui.pageUntil(proposed) },
+        // Each try from the first page: a reload keeps the ?page=N the paging left in the URL (alpha.424).
+        await expect.poll(async () => { await ui.go(`${C}/mapping/dictionary?integration=MRU01`, /Crs code/); return ui.pageUntil(proposed) },
             { message: `the agent never proposed 432040HLXMU for ${code}`, timeout: 5 * 60_000, intervals: [15_000] }).toBe(true)
         // Approve only that one: select its row first (with nothing selected, Approve takes them all).
         await ui.selectRow('432040HLXMU')
@@ -588,9 +589,15 @@ test.describe.serial(`demo, UI only (${RENDERER})`, () => {
         await ui.click(ui.button('Siguiente'), 4_000)
         await ui.waitText(/Lista · /, 'the check-in never showed the rooms')
         await ui.click(ui.page.getByText(/^\d{3,4}$/).first(), 4_000) // the first room's card: ready ones come first
-        for (let i = 0; i < 2; i++) await ui.click(ui.button('Siguiente'), 3_500)
-        await ui.click(ui.button('Enviar a tablet'), 9_000)
-        await ui.click(ui.button('Confirmar check-in'), 10_000)
+        // then the signature, the extras and the rest, as the wizard asks for them (as in flow 10)
+        let signed = false
+        for (let i = 0; i < 12; i++) {
+            const sign = ui.button('Enviar a tablet')
+            if (!signed && await sign.isVisible().catch(() => false)) { await ui.click(sign, 9_000); signed = true; continue }
+            const confirm = ui.button('Confirmar check-in')
+            if (await confirm.isVisible().catch(() => false)) { await ui.click(confirm, 10_000); break }
+            await ui.click(ui.button('Siguiente'), 3_500)
+        }
         await ui.go(`${FO}/reservas/${byHand}`, /Huéspedes|Check-out/)
         await ui.click(ui.button('Check-out'), 4_000)
         await ui.click(ui.page.getByRole('button', { name: /^Confirmar — / }).first(), 8_000)
@@ -599,8 +606,8 @@ test.describe.serial(`demo, UI only (${RENDERER})`, () => {
 
         await ui.go(`${D}/history/search`, /Historial de clientes/)
         await ui.type('Código de cliente', known3.customerId)
-        // the toolbar's «Buscar», not the menu entry of the same name (Redwood shows both)
-        await ui.click(ui.page.getByRole('button', { name: 'Buscar', exact: true }).last(), 5_000)
+        // the form's «Buscar», inside <main>: the breadcrumb and the shell's search palette have one too
+        await ui.click(ui.page.getByRole('main').getByRole('button', { name: 'Buscar', exact: true }).first(), 5_000)
         // «Recepción» is the origin of a stay closed at the desk; the seeded ones say «Demo»
         await ui.waitText(/MRU01[^]{0,400}Recepción|Recepción[^]{0,400}MRU01/,
             'the closed stay never reached the customer history')
@@ -662,7 +669,7 @@ test.describe.serial(`demo, UI only (${RENDERER})`, () => {
         await ui.click(ui.button('Cobrar'), 3_000)
         await ui.waitText(/recibo nº \d+/, 'the till took no advance')
         await expect.poll(async () => {
-            await ui.go(`${FO}/caja/${opera}`, /Saldo pendiente/)
+            await till(ui, opera, 'Cobros y recibos')
             return /Opera: (pendiente|rechazado)/.test(await ui.text())
         }, { message: 'the advance never went to Opera', timeout: 3 * 60_000, intervals: [15_000] }).toBe(true)
 
@@ -689,19 +696,27 @@ test.describe.serial(`demo, UI only (${RENDERER})`, () => {
         }
         // in the house in Opera, the advance that waited goes on its folio
         await expect.poll(async () => {
-            await ui.go(`${FO}/caja/${opera}`, /Saldo pendiente/)
+            await till(ui, opera, 'Cobros y recibos')
             return /Opera: en el folio/.test(await ui.text())
         }, { message: 'the advance never reached Opera\'s folio', timeout: 6 * 60_000, intervals: [20_000] }).toBe(true)
         await ui.checkpoint('f10-advance-in-operas-folio')
 
         // and a refund goes back the same way
+        await till(ui, opera, 'Devolver o anular')
         await ui.click(ui.button('Devolver'), 3_000)
         await expect.poll(async () => {
-            await ui.go(`${FO}/caja/${opera}`, /Saldo pendiente/)
+            await till(ui, opera, 'Cobros y recibos')
             return /Opera: devuelto/.test(await ui.text())
         }, { message: 'the refund never reached Opera\'s folio', timeout: 4 * 60_000, intervals: [20_000] }).toBe(true)
     })
 })
+
+/** The till of a stay, on one of its tabs: each payment's state in Opera is in «Cobros y recibos», the
+ *  refunds in «Devolver o anular» (the first tab, «Cobrar», only takes payments). */
+async function till(ui: Ui, stay: string, tab: string) {
+    await ui.go(`${FO}/caja/${stay}`, /Saldo pendiente/)
+    await ui.click(ui.page.getByRole('tab', { name: tab }).first(), 2_000)
+}
 
 /** What the demo's seeding made known (POST /demo/known-customers, through ec1.py --json). */
 interface Known { stayId: string, guestName: string, customerId: string, riuClass: string, documentType: string,

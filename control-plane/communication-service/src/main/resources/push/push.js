@@ -13,23 +13,30 @@
 // covers this page, and here it never resolves.
 //
 // What it puts on the page: a small offer in a corner the first time ("Activar avisos", dismissable
-// for good), and <ec-push-toggle> — the "Avisos" line of the user menu — which says the state of this
+// for good), and <ec-push-toggle> — the "Avisos" line of the user menu (see intoRedwoodUserPopup and
+// intoVaadinUserPopover for where it goes) — which says the state of this
 // browser (activados / desactivados / bloqueados por el navegador / no disponibles) and turns them on
 // or off, or sends a test. window.ecPush is the same, for a console to call.
-// The inbox badge's way in (InboxBadge): an element carrying data-ec-route navigates there in-app.
-// Mateu sanitises the HTML it renders, so the badge cannot carry an onclick; this listens once, on
-// the document, and turns a click on it — or Enter or Space where it is not an upgraded button (the
-// Redwood shell has no <vaadin-button>) — into the navigation-requested event the menu sends, with
-// the pod that owns the route. Both renderers listen for that event. Capture phase and composedPath:
-// in the Vaadin shell the badge lives inside shadow roots, and a click must reach this however the
-// components in between handle it.
+// The inbox badge's way in (InboxBadge), and the user menu's Logout (UserWidget). Mateu sanitises
+// the HTML it renders, so neither can carry an onclick (nor a javascript: href); this listens once,
+// on the document:
+//  - a click on an element carrying data-ec-route becomes the navigation-requested event the menu
+//    sends, with the pod that owns the route. That is the Vaadin shell: it keeps data-* attributes.
+//    The Redwood shell drops them, and makes the badge's <a> a route link by itself, from the
+//    navigation-requested its onclick names (never run) — so a click there never reaches this.
+//    A modified click (Ctrl, Cmd, Shift, middle button) is left to the browser: the link's href in a
+//    new tab. Enter on the badge is a click already: it is a link.
+//  - a click on a link to #ec-logout signs out with window.logout(), which the bootstrap page Mateu
+//    writes for @KeycloakSecured defines — in both shells.
+// Capture phase and composedPath: in the Vaadin shell both live inside shadow roots, and a click must
+// reach this however the components in between handle it.
 (() => {
   if (window.__ecRouteLinks) return;
   window.__ecRouteLinks = true;
 
-  const target = event => {
+  const target = (event, test) => {
     for (const node of event.composedPath()) {
-      if (node instanceof Element && node.hasAttribute('data-ec-route')) return node;
+      if (node instanceof Element && test(node)) return node;
     }
     return null;
   };
@@ -50,15 +57,15 @@
   };
 
   document.addEventListener('click', event => {
-    const link = target(event);
+    if (event.button > 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    const logout = target(event, node => node.localName === 'a' && node.getAttribute('href') === '#ec-logout');
+    if (logout) {
+      event.preventDefault();
+      if (typeof window.logout === 'function') window.logout();
+      return;
+    }
+    const link = target(event, node => node.hasAttribute('data-ec-route'));
     if (link) go(link, event);
-  }, true);
-
-  document.addEventListener('keydown', event => {
-    if (event.key !== 'Enter' && event.key !== ' ') return;
-    const link = target(event);
-    // an upgraded <vaadin-button> turns Enter and Space into a click by itself
-    if (link && !customElements.get(link.localName)) go(link, event);
   }, true);
 })();
 
@@ -321,10 +328,17 @@
 
   if (!customElements.get('ec-push-toggle')) customElements.define('ec-push-toggle', PushToggle);
 
-  // Redwood draws the user widget's popover itself (#mateuUserPopup) from plain rows — text through
-  // oj-bind-text and links — so the <ec-push-toggle> the widget sends never reaches its DOM (Mateu's
-  // Redwood renderer: no markup in a header widget). Here it is put in the popup when the popup is
-  // drawn; with Vaadin the widget's own element is there already and this finds nothing to do.
+  // Where <ec-push-toggle> goes in the user menu. The widget cannot send the element itself: both
+  // renderers sanitise its HTML (Mateu 3.0-alpha.430) and drop an unknown custom element.
+  //  - Redwood draws the popover itself (#mateuUserPopup) from plain rows — text through
+  //    oj-bind-text and links — so nothing of the widget's markup reaches its DOM: the element is put
+  //    in the popup, before Logout, when the popup is drawn (a mutation of the document).
+  //  - Vaadin draws the widget's own HTML, which keeps an inert <span data-ec-push-toggle>: the
+  //    element is put inside it. Inside, not instead: Lit owns that span, and when it redraws the
+  //    popover the span goes and comes back empty, to be filled again. It lives in shadow roots (the
+  //    shell's, the popover's content is drawn in place in Vaadin 25), which a mutation observer on
+  //    the document does not see: it is looked for, across shadow roots, a few times after each
+  //    click, Enter or Space, which is what opens the popover.
   function intoRedwoodUserPopup() {
     const content = document.querySelector('#mateuUserPopup .oj-popup-content > div');
     if (content && !content.querySelector('ec-push-toggle')) {
@@ -339,6 +353,27 @@
     scheduled = true;
     requestAnimationFrame(() => { scheduled = false; intoRedwoodUserPopup(); });
   }).observe(document.documentElement, { childList: true, subtree: true });
+
+  // Each element matching selector under root, shadow roots included.
+  function eachDeep(root, selector, fn) {
+    root.querySelectorAll(selector).forEach(fn);
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      if (node.shadowRoot && node.localName !== 'ec-push-toggle') eachDeep(node.shadowRoot, selector, fn);
+    }
+  }
+  function intoVaadinUserPopover() {
+    eachDeep(document, '[data-ec-push-toggle]', slot => {
+      if (!slot.querySelector('ec-push-toggle')) slot.appendChild(document.createElement('ec-push-toggle'));
+    });
+  }
+  let pending = [];
+  const lookForTheSlot = () => {
+    pending.forEach(clearTimeout);
+    pending = [50, 250, 750].map(ms => setTimeout(intoVaadinUserPopover, ms));
+  };
+  document.addEventListener('click', lookForTheSlot, true);
+  document.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') lookForTheSlot(); }, true);
 
   window.ecPush = { state: () => state, enable, disable, test, refresh };
 

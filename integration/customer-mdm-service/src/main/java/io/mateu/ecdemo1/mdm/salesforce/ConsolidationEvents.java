@@ -170,7 +170,8 @@ public class ConsolidationEvents implements SmartLifecycle {
                         topic.handler().accept(record);
                     } catch (RuntimeException e) {
                         // The event is a hint, and the poll the net: one that cannot be handled now is
-                        // left to the poll, instead of holding every event behind it.
+                        // left behind — a merge is kept as pending and tried again soon (Consolidations),
+                        // the rest wait for their poll — instead of holding every event behind it.
                         log.warn("Event {} not handled, the poll will find it: {}", event.getEvent().getId(), e.getMessage());
                     }
                     remember(topic, event.getReplayId());
