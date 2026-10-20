@@ -33,6 +33,11 @@ component, throttling, the JDBC pool, GC), **Booking traces** (a booking's trace
 
 ## 2. Understand what is where
 
+To connect the VS Code execution plugin to ec1, see
+[the IDE connection and deployment handoff](deploy/ide-execution/README.md). It requires the
+new execution API in the engine, an opt-in flag and the gateway route; the console's login
+credentials alone do not configure that connection.
+
 Four repositories, and the split matters:
 
 | repo | what it holds |

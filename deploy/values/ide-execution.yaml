@@ -1,0 +1,5 @@
+# Optional overlay for an engine image containing the IDE execution API and migration V58.
+# Keep the deployed image and existing release settings explicit; see ../ide-execution/README.md.
+orchestrator:
+  extraEnv:
+    WORKFLOW_TEST_RUNS_ENABLED: "true"
