@@ -70,6 +70,15 @@ spring:
             - Host=${CONSOLE_HOST:ec1.mateu.io},${RW_CONSOLE_HOST:rw.ec1.mateu.io}
             - Path=/forms/webhooks/**
 
+        # The IDE uses the REST API, not the Mateu UI namespace below. Preserve the full
+        # path and caller's bearer token. SecurityConfig requires the workflow admin role;
+        # starting unpublished documents still requires the engine's separate opt-in flag.
+        - id: workflow-execution-api
+          uri: ${ORCHESTRATOR_URL:http://orchestrator:8105}
+          predicates:
+            - Host=${CONSOLE_HOST:ec1.mateu.io},${RW_CONSOLE_HOST:rw.ec1.mateu.io}
+            - Path=/workflow/api/**
+
         - id: orchestrator
           uri: ${ORCHESTRATOR_URL:http://orchestrator:8105}
           predicates:

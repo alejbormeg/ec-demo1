@@ -132,6 +132,9 @@ public class SecurityConfig {
                         // GitHub cannot hold a Keycloak token, so these authenticate by
                         // HMAC-SHA256 over the body, verified by the engine itself.
                         .pathMatchers("/workflow/webhooks/**", "/forms/webhooks/**").permitAll()
+                        // Running an arbitrary document and cancelling processes are workflow
+                        // administration. AI catalogue administration alone does not grant this.
+                        .pathMatchers("/workflow/api/**").hasRole("admin")
                         .pathMatchers("/_workflow/**", "/_forms/**").authenticated()
                         // Web Push's two scripts, public: a browser loads a <script> and registers a
                         // service worker without a token. Code, no data — the endpoints they call
