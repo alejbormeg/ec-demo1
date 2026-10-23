@@ -35,8 +35,14 @@ public final class WorkflowPorts {
     public interface Tools extends AutoCloseable {
         List<ToolSpec> definitions();
         String systemContext();
-        String call(ToolSpec tool, String arguments, String idempotencyKey);
+        /** Definitive refusals come back as {@link ToolOutcome.Rejected}; an exception means the outcome is unknown. */
+        ToolOutcome call(ToolSpec tool, String arguments, String idempotencyKey);
         @Override void close();
+    }
+    public sealed interface ToolOutcome {
+        record Ok(String result) implements ToolOutcome {}
+        /** The call was refused or failed definitively, so the model may safely retry with a new call id. */
+        record Rejected(String message, String code, boolean transientFailure) implements ToolOutcome {}
     }
     public interface ToolFactory { Tools open(Request request); }
     public interface Codec {

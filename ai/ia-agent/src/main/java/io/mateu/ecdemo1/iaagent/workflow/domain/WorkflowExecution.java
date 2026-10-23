@@ -21,6 +21,8 @@ public final class WorkflowExecution {
     public static final class Tool {
         public String id, name, arguments, digest, result, kind, sourceId, childId;
         public boolean readOnly;
+        /** {@code error}: definitive refusal returned to the model; {@code sent}: reached the remote server. */
+        public boolean error, sent;
         public ToolStatus status = ToolStatus.PREPARED;
         public String evidence, reviewer;
         public Tool() {}

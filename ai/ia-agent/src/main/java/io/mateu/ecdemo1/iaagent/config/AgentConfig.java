@@ -30,7 +30,9 @@ public record AgentConfig(
                       Double temperature, Integer maxTokens, String apiKey) {
     }
 
-    public record Mcp(String id, String name, String url, String transport, long timeoutSeconds) {
+    /** {@code toolErrors}: RETURN_TO_MODEL lets workflow agents retry effectful isError results; null/FAIL holds them for review. */
+    public record Mcp(String id, String name, String url, String transport, long timeoutSeconds, String toolErrors) {
+        public boolean returnToolErrorsToModel() { return "RETURN_TO_MODEL".equalsIgnoreCase(toolErrors); }
     }
 
     /** {@code description} becomes the tool description the model reads. See RagToolFactory. */

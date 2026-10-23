@@ -11,12 +11,16 @@ import java.util.*;
 public final class WorkflowAgentRunner {
     private final Store store; private final Catalogue catalogue; private final Model model;
     private final ToolFactory toolFactory; private final Codec codec; private final Clock clock;
-    private final int maxRounds, maxCalls;
+    private final int maxRounds, maxCalls, maxToolErrors;
     private final Delegation delegation;
     public WorkflowAgentRunner(Store store, Catalogue catalogue, Model model, ToolFactory toolFactory,
                                Codec codec, Clock clock, int maxRounds, int maxCalls, Delegation delegation) {
+        this(store,catalogue,model,toolFactory,codec,clock,maxRounds,maxCalls,5,delegation);
+    }
+    public WorkflowAgentRunner(Store store, Catalogue catalogue, Model model, ToolFactory toolFactory,
+                               Codec codec, Clock clock, int maxRounds, int maxCalls, int maxToolErrors, Delegation delegation) {
         this.store=store; this.catalogue=catalogue; this.model=model; this.toolFactory=toolFactory;
-        this.codec=codec; this.clock=clock; this.maxRounds=maxRounds; this.maxCalls=maxCalls;this.delegation=delegation;
+        this.codec=codec; this.clock=clock; this.maxRounds=maxRounds; this.maxCalls=maxCalls;this.maxToolErrors=maxToolErrors;this.delegation=delegation;
     }
     public WorkflowExecution submit(Request request) {
         if (request.invocationId()==null || request.invocationId().isBlank()) throw new IllegalArgumentException("invocationId required");
@@ -78,10 +82,12 @@ public final class WorkflowAgentRunner {
                     e.rounds.add(round); e.messages.add(round.assistant());
                     for(var call:round.assistant().calls()) {
                         if(e.tools.stream().anyMatch(t->t.id.equals(call.id()))) throw new IllegalArgumentException("Duplicate tool call id");
-                        var definition=tools.definitions().stream().filter(t->t.name().equals(call.name())).findFirst().orElseThrow(()->new IllegalArgumentException("Unregistered tool "+call.name()));
+                        var definition=tools.definitions().stream().filter(t->t.name().equals(call.name())).findFirst();
                         var tool=new Tool(); tool.id=call.id(); tool.name=call.name(); tool.arguments=call.arguments();
-                        tool.digest=codec.digest(Map.of("tool",call.name(),"arguments",codec.object(call.arguments())));
-                        tool.kind=definition.kind(); tool.sourceId=definition.sourceId(); tool.readOnly=definition.readOnly();
+                        Object arguments;try{arguments=codec.object(call.arguments());}catch(IllegalArgumentException invalid){arguments=Objects.toString(call.arguments(),"");}
+                        tool.digest=codec.digest(Map.of("tool",call.name(),"arguments",arguments));
+                        // An unknown tool is never dispatched; completeTools reports it back to the model.
+                        tool.kind=definition.map(ToolSpec::kind).orElse(UNREGISTERED); tool.sourceId=definition.map(ToolSpec::sourceId).orElse(null); tool.readOnly=definition.map(ToolSpec::readOnly).orElse(true);
                         if("a2a".equals(tool.kind)) tool.childId=childId(e.request.invocationId(),e.rounds.size(),tool.id);
                         e.tools.add(tool);
                     }
@@ -113,9 +119,13 @@ public final class WorkflowAgentRunner {
                 t.status=ToolStatus.REVIEW_REQUIRED; throw new ReviewNeeded("Tool "+t.id+" may already have applied an effect");
             }
             ensureDeadline(e);
-            if(store.children(e.request.rootInvocationId()).stream().flatMap(i->i.tools.stream()).filter(x->x.status!=ToolStatus.PREPARED).count()>=maxCalls && t.status==ToolStatus.PREPARED)
+            if(store.children(e.request.rootInvocationId()).stream().flatMap(i->i.tools.stream()).filter(x->x.sent||(x.status!=ToolStatus.PREPARED&&!x.error)).count()>=maxCalls && t.status==ToolStatus.PREPARED)
                 throw new IllegalStateException("Global tool-call limit exceeded");
             catalogue.authorize(e.request);
+            var def=opened.definitions().stream().filter(d->d.name().equals(t.name)).findFirst();
+            if(def.isEmpty()||UNREGISTERED.equals(t.kind)) { reject(e,t,new ToolOutcome.Rejected("Unregistered tool "+t.name,"unregistered_tool",false)); continue; }
+            try { codec.validate(codec.object(def.get().inputSchema()),t.arguments); }
+            catch(IllegalArgumentException invalid) { reject(e,t,new ToolOutcome.Rejected(bounded("Arguments violate the tool inputSchema: "+invalid.getMessage()),"invalid_arguments",false)); continue; }
             if("a2a".equals(t.kind)) {
                 var child=child(e,t);
                 delegation.dispatch(effectiveRequest(e),t);
@@ -128,19 +138,30 @@ public final class WorkflowAgentRunner {
                 }
                 t.result=child.result;
             } else {
-                t.status=ToolStatus.DISPATCHED; store.save(e);
-                var def=opened.definitions().stream().filter(d->d.name().equals(t.name)).findFirst().orElseThrow();
-                try { t.result=opened.call(def,t.arguments,e.request.invocationId()+":"+t.id); }
+                t.status=ToolStatus.DISPATCHED; t.sent=true; store.save(e);
+                ToolOutcome outcome;
+                try { outcome=opened.call(def.get(),t.arguments,e.request.invocationId()+":"+t.id); }
                 catch(RuntimeException failure) {
                     if(!t.readOnly) { t.status=ToolStatus.REVIEW_REQUIRED; store.save(e); throw new ReviewNeeded("Unconfirmed tool "+t.id); }
-                    t.status=ToolStatus.PREPARED; store.save(e); throw failure;
+                    // Repeating a read-only call is safe: the model decides whether to retry.
+                    outcome=new ToolOutcome.Rejected("Transient failure of a read-only tool; it may be retried","transient",true);
                 }
+                if(outcome instanceof ToolOutcome.Rejected rejected) { reject(e,t,rejected); continue; }
+                t.result=((ToolOutcome.Ok)outcome).result();
             }
             t.status=ToolStatus.CONFIRMED;
             e.messages.add(new Message("tool",t.result,Map.of(),List.of(),t.id,t.name)); store.save(e);
         }
         return true;
     }
+    /** A definitive refusal is confirmed and shown to the model; a retry is a new call with a new idempotency key. */
+    private void reject(WorkflowExecution e, Tool t, ToolOutcome.Rejected rejected) {
+        var body=new LinkedHashMap<String,Object>();body.put("error",true);body.put("code",rejected.code());body.put("transient",rejected.transientFailure());body.put("message",bounded(rejected.message()));
+        t.status=ToolStatus.CONFIRMED; t.error=true; t.result=codec.encode(body);
+        e.messages.add(new Message("tool",t.result,Map.of(),List.of(),t.id,t.name)); store.save(e);
+        if(e.tools.stream().filter(x->x.error).count()>maxToolErrors) throw new IllegalStateException("Tool error limit exceeded: "+body.get("message"));
+    }
+    private static String bounded(String message) { var text=Objects.toString(message,""); return text.length()>500?text.substring(0,500)+"...":text; }
     private WorkflowExecution child(WorkflowExecution parent, Tool tool) {
         var args=codec.object(tool.arguments); var request=parent.request;
         var chain=new ArrayList<>(request.chain()); chain.add(request.agentRef());
@@ -232,6 +253,7 @@ public final class WorkflowAgentRunner {
         payload.put("stepId",e.request.stepId());payload.put("invocationId",e.request.invocationId());payload.put("status",e.status.name());payload.put("variables",variables);
         payload.put("error",e.error);payload.put("reviewResolved",e.reviewResolved);payload.put("stateSequence",e.stateSequence);store.outbox(e.request.invocationId()+":reply:"+e.stateSequence,"reply",codec.encode(payload));
     }
+    private static final String UNREGISTERED="unregistered";
     public static String childId(String parent,int round,String callId) {return UUID.nameUUIDFromBytes((parent+":"+round+":"+callId).getBytes(StandardCharsets.UTF_8)).toString();}
     private static final class Cancelled extends RuntimeException { Cancelled(){super("Workflow cancelled or deadline exceeded; confirmed effects are retained");} }
     private static final class ReviewNeeded extends RuntimeException { ReviewNeeded(String message){super(message);} }
